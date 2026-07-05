@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Leetify Codeforces",
+  "version": "1.0.0",
+  "description": "A split-pane coding environment directly on Codeforces problem pages.",
+  "permissions": [
+    "activeTab"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://codeforces.com/contest/*/problem/*",
+        "*://codeforces.com/problemset/problem/*",
+        "*://www.codeforces.com/contest/*/problem/*",
+        "*://www.codeforces.com/problemset/problem/*"
+      ],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "leetify-cf@yourdomain.com",
+      "strict_min_version": "109.0"
+    }
+  }
+}
