@@ -194,6 +194,71 @@ rl.on('close', () => {
   let statusChars    = null;
   let statusLang     = null;
 
+  /* ════════════════════════════════════════════════════════
+     SETTINGS — localStorage persistence
+     Key: 'leetify_settings'  (object)
+     Key: 'leetify_code_{lang}' (string per language)
+  ════════════════════════════════════════════════════════ */
+  const SETTINGS_KEY = 'leetify_settings';
+  const CODE_KEY     = lang => `leetify_code_${lang}`;
+
+  const DEFAULTS = {
+    lang:      'cpp',
+    fontSize:  ED.fontSize,
+    wrap:      false,
+    focus:     false,
+    paneWidth: 40,        // percent
+  };
+
+  const Settings = {
+    /** Load from localStorage; falls back to DEFAULTS for any missing key. */
+    load() {
+      let stored = {};
+      try { stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); }
+      catch (_) { stored = {}; }
+      return Object.assign({}, DEFAULTS, stored);
+    },
+
+    /** Persist the current in-memory state to localStorage. */
+    save() {
+      const data = {
+        lang:      currentLang,
+        fontSize:  currentFontSize,
+        wrap:      wrapOn,
+        focus:     splitContainer
+                     ? splitContainer.classList.contains('focus-mode')
+                     : false,
+        paneWidth: (() => {
+          const lp = document.getElementById('leetify-left-pane');
+          if (!lp) return DEFAULTS.paneWidth;
+          const w = parseFloat(lp.style.width);
+          return isNaN(w) ? DEFAULTS.paneWidth : w;
+        })(),
+      };
+      try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(data)); }
+      catch (_) { /* quota exceeded — silently ignore */ }
+    },
+
+    /** Save the current editor code for a given language. */
+    saveCode(lang, code) {
+      try { localStorage.setItem(CODE_KEY(lang), code); }
+      catch (_) {}
+    },
+
+    /** Retrieve saved code for a language, or null if none. */
+    loadCode(lang) {
+      try { return localStorage.getItem(CODE_KEY(lang)); }
+      catch (_) { return null; }
+    },
+  };
+
+  /** Debounce helper — used to throttle code saves on every keystroke. */
+  function debounce(fn, ms) {
+    let timer;
+    return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+  }
+  const debouncedSaveCode = debounce((lang, code) => Settings.saveCode(lang, code), 500);
+
   /* ════════════════════════════════════════════════════════════
      INIT
   ════════════════════════════════════════════════════════════ */
@@ -202,9 +267,25 @@ rl.on('close', () => {
     if (!problemStatement) return;
     originalParent  = problemStatement.parentNode;
     originalNextSib = problemStatement.nextSibling;
+
+    // ── Apply persisted settings before building the UI ──
+    const s = Settings.load();
+    currentLang     = LANG[s.lang] ? s.lang : DEFAULTS.lang;
+    currentFontSize = (s.fontSize >= FONT_MIN && s.fontSize <= FONT_MAX)
+                        ? s.fontSize : DEFAULTS.fontSize;
+    wrapOn          = !!s.wrap;
+    // focus and paneWidth are applied after the DOM is built (see applyRestoredSettings)
+    _restoredFocus     = !!s.focus;
+    _restoredPaneWidth = (s.paneWidth >= 20 && s.paneWidth <= 75)
+                           ? s.paneWidth : DEFAULTS.paneWidth;
+
     createActivateBtn();
     activateSplit();
   }
+
+  // Temporary holders for focus / pane-width that must be applied post-build
+  let _restoredFocus     = false;
+  let _restoredPaneWidth = DEFAULTS.paneWidth;
 
   /* ════════════════════════════════════════════════════════════
      ACTIVATE / EXIT
@@ -226,19 +307,148 @@ rl.on('close', () => {
     document.body.appendChild(activateBtn);
   }
 
+  // Problem list: filled first by DOM scrape, then updated by async fetch
+  let contestProblems = [];
+
+  /** ── Phase 1: scrape what's already in the current page DOM ── */
+  function scrapeContestProblems() {
+    const seen = new Set();
+    const res  = [];
+    document.querySelectorAll('.problems td.id a, .sidebar a[href]').forEach(a => {
+      const m = a.href.match(/\/(?:contest|gym)\/(\d+)\/problem\/([A-Z0-9]+)/i);
+      if (m && !seen.has(m[2].toUpperCase())) {
+        seen.add(m[2].toUpperCase());
+        res.push({ letter: m[2].toUpperCase(), url: a.href, contest: m[1] });
+      }
+    });
+    res.sort((a, b) => a.letter.localeCompare(b.letter));
+    return res;
+  }
+
+  /**
+   * ── Phase 2: fetch the contest index page to get the FULL problem list.
+   * CF individual problem pages only contain links to the current problem;
+   * the full A–G list lives on /contest/ID.
+   */
+  async function fetchContestProblems(contestId) {
+    try {
+      const resp = await fetch(
+        `https://codeforces.com/contest/${contestId}`,
+        { credentials: 'include' }        // send session cookies for locale
+      );
+      if (!resp.ok) return [];
+      const html = await resp.text();
+      const doc  = new DOMParser().parseFromString(html, 'text/html');
+      const seen = new Set();
+      const res  = [];
+      doc.querySelectorAll('.problems td.id a').forEach(a => {
+        // href in parsed doc is relative; normalise manually
+        const raw    = a.getAttribute('href') || '';
+        const letter = raw.split('/problem/')[1]?.split('?')[0]?.toUpperCase();
+        if (letter && !seen.has(letter)) {
+          seen.add(letter);
+          res.push({
+            letter,
+            url: `https://codeforces.com/contest/${contestId}/problem/${letter}`,
+          });
+        }
+      });
+      res.sort((a, b) => a.letter.localeCompare(b.letter));
+      return res;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /**
+   * Fix math colours on a cloned problem-statement node so that
+   * MathJax/KaTeX SVG and CHTML output is visible on a dark background.
+   *
+   * Strategy: strip explicit black fill/stroke ATTRIBUTES from SVG elements
+   * (so they fall back to CSS `fill: currentColor`) and remove inline
+   * `color:#000` styles from HTML elements (so CSS `color: var(--lp-text)`
+   * can take effect).
+   */
+  function fixMathColors(root) {
+    const DARK = /^(#000(000)?|black|rgb\(\s*0\s*,\s*0\s*,\s*0\s*\))$/i;
+
+    // Process all elements (SVG and HTML) in one pass
+    root.querySelectorAll('*').forEach(el => {
+      const s = el.style;
+      if (!s) return; // safeguard
+
+      // Strip explicit dark inline styles
+      if (s.color && DARK.test(s.color.trim()))    s.removeProperty('color');
+      if (s.fill  && DARK.test(s.fill.trim()))     s.setProperty('fill', 'currentColor');
+      if (s.stroke && DARK.test(s.stroke.trim()))  s.setProperty('stroke', 'currentColor');
+
+      // Fix explicit dark HTML attributes
+      const f = el.getAttribute('fill');
+      if (f && f !== 'none' && DARK.test(f.trim())) el.setAttribute('fill', 'currentColor');
+      
+      const st = el.getAttribute('stroke');
+      if (st && st !== 'none' && DARK.test(st.trim())) el.setAttribute('stroke', 'currentColor');
+    });
+
+    // Ensure MathJax SVG roots inherit our text color explicitly
+    root.querySelectorAll('svg').forEach(el => {
+      if (!el.style.color) el.style.color = 'var(--lp-text, #d6d4cc)';
+    });
+  }
+
   function activateSplit() {
+    // Phase 1 – synchronous DOM scrape (before CF nav is hidden)
+    if (contestProblems.length === 0) contestProblems = scrapeContestProblems();
+
     if (!splitContainer) buildSplitContainer();
     const lp = document.getElementById('leetify-left-pane');
-    if (lp && problemStatement) lp.appendChild(problemStatement);
+
+    if (lp && problemStatement) {
+      lp.appendChild(problemStatement);
+
+      // Run immediately for already-rendered math
+      fixMathColors(lp);
+
+      // Codeforces' MathJax often does a delayed "second-pass" render.
+      // Sometimes it even replaces the entire problem-statement element!
+      // Attach the observer to our permanent left pane to ensure we never lose it.
+      if (!lp._leetifyObserver) {
+        const observer = new MutationObserver(() => {
+          observer.disconnect();
+          try {
+            fixMathColors(lp);
+          } catch (e) { console.error('MathJax fix error:', e); }
+          observer.observe(lp, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'fill', 'stroke'] });
+        });
+        observer.observe(lp, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'fill', 'stroke'] });
+        lp._leetifyObserver = observer;
+      }
+    }
+
     splitContainer.style.display = 'flex';
     document.body.classList.add('leetify-active');
     if (activateBtn) activateBtn.style.display = 'none';
+
+    // Populate nav with whatever we have from Phase 1
+    renderProblemNav();
+
+    // Phase 2 – async fetch of the full problem list from the contest index
+    const contestM = window.location.href.match(/\/(?:contest|gym)\/(\d+)\//i);
+    if (contestM) {
+      fetchContestProblems(contestM[1]).then(list => {
+        if (list.length > contestProblems.length) {
+          contestProblems = list;
+          renderProblemNav(); // update nav with the complete list
+        }
+      });
+    }
   }
 
   function exitSplit() {
     if (!problemStatement || !originalParent) return;
     if (originalNextSib) originalParent.insertBefore(problemStatement, originalNextSib);
     else originalParent.appendChild(problemStatement);
+
     if (splitContainer) splitContainer.style.display = 'none';
     document.body.classList.remove('leetify-active');
     if (activateBtn) activateBtn.style.display = 'flex';
@@ -269,12 +479,18 @@ rl.on('close', () => {
     );
     setupEditor();
     bindToolbar();
+    applyRestoredSettings();
   }
 
   /* ── Left pane ── */
   function buildLeftPane() {
     const pane = document.createElement('div');
     pane.id = 'leetify-left-pane';
+
+    // Problem navigator (filled by renderProblemNav after scraping)
+    const nav = document.createElement('div');
+    nav.id = 'leetify-prob-nav';
+    pane.appendChild(nav);
 
     const exitBtn = document.createElement('button');
     exitBtn.id = 'leetify-toggle-back';
@@ -289,6 +505,18 @@ rl.on('close', () => {
     exitBtn.addEventListener('click', exitSplit);
     pane.appendChild(exitBtn);
     return pane;
+  }
+
+  /** Populate #leetify-prob-nav with the scraped problem list. */
+  function renderProblemNav() {
+    const nav = document.getElementById('leetify-prob-nav');
+    if (!nav || contestProblems.length === 0) return;
+    const currentM = window.location.href.match(/\/problem\/([A-Z0-9]+)/i);
+    const current  = currentM ? currentM[1].toUpperCase() : null;
+    nav.innerHTML = contestProblems.map(p => {
+      const active = p.letter === current ? ' active' : '';
+      return `<a class="prob-tab${active}" href="${p.url}" title="Problem ${p.letter}">${p.letter}</a>`;
+    }).join('');
   }
 
   /* ── Resizer ── */
@@ -343,8 +571,13 @@ rl.on('close', () => {
         </div>
 
         <div class="leetify-toolbar-right">
+          <!-- Template -->
+          <button class="leetify-tbtn" id="lbtn-template" title="Edit starter template for current language">⊞ Template</button>
+
+          <span class="leetify-sep"></span>
+
           <!-- Reset -->
-          <button class="leetify-tbtn" id="lbtn-reset" title="Reset to boilerplate">↺ Reset</button>
+          <button class="leetify-tbtn" id="lbtn-reset" title="Reset to template / boilerplate">↺ Reset</button>
 
           <!-- Copy -->
           <button class="leetify-tbtn" id="lbtn-copy" title="Copy code to clipboard">⎘ Copy</button>
@@ -387,15 +620,51 @@ rl.on('close', () => {
      EDITOR LOGIC
   ════════════════════════════════════════════════════════════ */
   function setupEditor() {
-    codeInput.value = LANG[currentLang].boilerplate;
+    // Priority: saved code > template > built-in boilerplate
+    const savedCode = Settings.loadCode(currentLang);
+    codeInput.value = savedCode !== null ? savedCode : getStarterCode(currentLang);
     refreshAll();
 
-    codeInput.addEventListener('input',   () => { refreshAll(); });
+    codeInput.addEventListener('input', () => {
+      refreshAll();
+      // Persist code with 500 ms debounce to avoid hammering localStorage
+      debouncedSaveCode(currentLang, codeInput.value);
+    });
     codeInput.addEventListener('keydown', onKeyDown);
     codeInput.addEventListener('scroll',  syncScroll);
     codeInput.addEventListener('keyup',   updateStatus);
     codeInput.addEventListener('mouseup', updateStatus);
     codeInput.addEventListener('click',   updateStatus);
+  }
+
+  /**
+   * Apply settings that depend on DOM existing.
+   * Called once after buildSplitContainer() finishes.
+   */
+  function applyRestoredSettings() {
+    // Font size — re-run setter so CSS vars and label both update
+    setFontSize(currentFontSize);
+
+    // Word wrap
+    if (wrapOn) {
+      const rp  = document.getElementById('leetify-right-pane');
+      const btn = document.getElementById('lbtn-wrap');
+      if (rp)  rp.classList.add('wrap-on');
+      if (btn) btn.classList.add('active');
+    }
+
+    // Focus mode
+    if (_restoredFocus) {
+      splitContainer.classList.add('focus-mode');
+      const btn = document.getElementById('lbtn-focus');
+      if (btn) btn.classList.add('active');
+    }
+
+    // Pane width
+    const lp = document.getElementById('leetify-left-pane');
+    if (lp && _restoredPaneWidth !== DEFAULTS.paneWidth) {
+      lp.style.width = _restoredPaneWidth + '%';
+    }
   }
 
   /* ── Bracket/quote pair tables ── */
@@ -481,21 +750,28 @@ rl.on('close', () => {
       const charBefore = val[s - 1];
       const charAfter  = val[s];
 
-      // Bracket expansion: { | }  →  {\n    |\n}
-      if (OPEN_TO_CLOSE[charBefore] && charAfter === OPEN_TO_CLOSE[charBefore]) {
+      // Bracket pairs eligible for expansion (NOT quotes — those cause false triggers)
+      const EXPANDABLE = { '{':'}', '(':')', '[':']' };
+
+      // Is the cursor at the end of a blank/whitespace-only line?
+      const isBlankLine = /^\s*$/.test(val.slice(lineStart, s));
+
+      if (!isBlankLine && EXPANDABLE[charBefore] && charAfter === EXPANDABLE[charBefore]) {
+        // Bracket expansion: {|}  →  {\n    |\n}
+        // charAfter stays in place; we insert two lines before it.
         const middle = '\n' + indent + '    ';
         const close  = '\n' + indent;
-        // charAfter (the closing bracket) is already in val, we just insert
-        // two newlines before it, leaving closing bracket in place.
-        codeInput.value =
-          val.slice(0, s) + middle + close + val.slice(s);
-        // Cursor sits at end of middle line (after the extra indent)
+        codeInput.value = val.slice(0, s) + middle + close + val.slice(s);
         codeInput.selectionStart = codeInput.selectionEnd = s + middle.length;
+      } else if (isBlankLine) {
+        // Blank/whitespace-only line: just a plain newline, no auto-indent
+        // (avoids the visual "2-line skip" caused by propagating indent on empty lines)
+        codeInput.value = val.slice(0, s) + '\n' + val.slice(codeInput.selectionEnd);
+        codeInput.selectionStart = codeInput.selectionEnd = s + 1;
       } else {
-        // Normal Enter: match current line indent only, no extra bump
+        // Normal Enter: replicate current line's indent on the new line
         const ins = '\n' + indent;
-        codeInput.value =
-          val.slice(0, s) + ins + val.slice(codeInput.selectionEnd);
+        codeInput.value = val.slice(0, s) + ins + val.slice(codeInput.selectionEnd);
         codeInput.selectionStart = codeInput.selectionEnd = s + ins.length;
       }
       refreshAll();
@@ -666,37 +942,43 @@ rl.on('close', () => {
     currentFontSize = Math.max(FONT_MIN, Math.min(FONT_MAX, px));
     const lh = Math.round(currentFontSize * 1.615);
 
-    // Update CSS custom properties on the container
     const rp = document.getElementById('leetify-right-pane');
-    rp.style.setProperty('--ed-font-size',   currentFontSize + 'px');
-    rp.style.setProperty('--ed-line-height',  lh + 'px');
-
-    // Gutter .mk-ln divs are sized via CSS var, so they auto-update.
-    // But we need to re-sync the gutter transform in case scroll position differs.
+    if (rp) {
+      rp.style.setProperty('--ed-font-size',  currentFontSize + 'px');
+      rp.style.setProperty('--ed-line-height', lh + 'px');
+    }
     syncScroll();
 
     const lbl = document.getElementById('lbtn-font-label');
     if (lbl) lbl.textContent = currentFontSize + 'px';
+
+    Settings.save();
   }
 
   /* ── Language change ── */
   function changeLang(lang) {
     if (!LANG[lang]) return;
+    // Save current code before switching
+    Settings.saveCode(currentLang, codeInput.value);
     currentLang = lang;
-    codeInput.value = LANG[lang].boilerplate;
+    // Load previously saved code, or the template, or built-in boilerplate
+    const savedCode = Settings.loadCode(lang);
+    codeInput.value = savedCode !== null ? savedCode : getStarterCode(lang);
     const tabName = document.getElementById('leetify-tab-name');
     if (tabName) tabName.textContent = LANG[lang].filename;
     if (statusLang) statusLang.textContent = lang.toUpperCase();
     refreshAll();
+    Settings.save();
   }
 
   /* ── Word wrap ── */
   function toggleWrap() {
     wrapOn = !wrapOn;
     const rp = document.getElementById('leetify-right-pane');
-    rp.classList.toggle('wrap-on', wrapOn);
+    if (rp) rp.classList.toggle('wrap-on', wrapOn);
     const btn = document.getElementById('lbtn-wrap');
     if (btn) btn.classList.toggle('active', wrapOn);
+    Settings.save();
   }
 
   /* ── Focus mode ── */
@@ -704,12 +986,16 @@ rl.on('close', () => {
     splitContainer.classList.toggle('focus-mode');
     const btn = document.getElementById('lbtn-focus');
     if (btn) btn.classList.toggle('active', splitContainer.classList.contains('focus-mode'));
+    Settings.save();
   }
 
   /* ── Reset ── */
   function resetCode() {
-    if (!confirm('Reset code to boilerplate?')) return;
-    codeInput.value = LANG[currentLang].boilerplate;
+    const starter = getStarterCode(currentLang);
+    const label   = loadTemplate(currentLang) !== null ? 'template' : 'boilerplate';
+    if (!confirm(`Reset code to saved ${label}?`)) return;
+    codeInput.value = starter;
+    Settings.saveCode(currentLang, starter);
     refreshAll();
     codeInput.focus();
   }
@@ -773,6 +1059,85 @@ rl.on('close', () => {
       .addEventListener('click', copyCode);
     document.getElementById('lbtn-submit')
       .addEventListener('click', submitCode);
+    document.getElementById('lbtn-template')
+      .addEventListener('click', openTemplateModal);
+  }
+
+  /* ════════════════════════════════════════════════════════
+     TEMPLATE MODAL
+     Per-language starter template. Saved to localStorage.
+     Key: leetify_tpl_{lang}
+  ════════════════════════════════════════════════════════ */
+  const TPL_KEY = lang => `leetify_tpl_${lang}`;
+
+  function loadTemplate(lang) {
+    try { return localStorage.getItem(TPL_KEY(lang)); } catch { return null; }
+  }
+
+  function saveTemplate(lang, tpl) {
+    try { localStorage.setItem(TPL_KEY(lang), tpl); } catch {}
+  }
+
+  /** Returns the saved template if one exists, otherwise the built-in boilerplate. */
+  function getStarterCode(lang) {
+    const tpl = loadTemplate(lang);
+    return tpl !== null ? tpl : LANG[lang].boilerplate;
+  }
+
+  function openTemplateModal() {
+    // Remove any existing modal
+    document.getElementById('leetify-tpl-modal')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'leetify-tpl-modal';
+
+    const box = document.createElement('div');
+    box.className = 'tpl-box';
+
+    const current = loadTemplate(currentLang) ?? LANG[currentLang].boilerplate;
+
+    box.innerHTML = `
+      <div class="tpl-header">
+        <span class="tpl-title">Template — <span class="tpl-lang">${LANG[currentLang].label}</span></span>
+        <span class="tpl-hint">Used on Reset and when switching to this language for the first time.</span>
+      </div>
+      <textarea class="tpl-editor" id="leetify-tpl-ta" spellcheck="false"
+                autocomplete="off" autocorrect="off"></textarea>
+      <div class="tpl-actions">
+        <button class="leetify-tbtn" id="tpl-btn-restore">Restore default</button>
+        <span style="flex:1"></span>
+        <button class="leetify-tbtn" id="tpl-btn-cancel">Cancel</button>
+        <button class="leetify-tbtn submit" id="tpl-btn-save">Save template</button>
+      </div>
+    `;
+
+    overlay.appendChild(box);
+    document.getElementById('leetify-split-container').appendChild(overlay);
+
+    const ta = document.getElementById('leetify-tpl-ta');
+    ta.value = current;
+    ta.focus();
+
+    // Close on overlay-background click
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+    document.getElementById('tpl-btn-cancel').addEventListener('click', () => overlay.remove());
+
+    document.getElementById('tpl-btn-restore').addEventListener('click', () => {
+      ta.value = LANG[currentLang].boilerplate;
+    });
+
+    document.getElementById('tpl-btn-save').addEventListener('click', () => {
+      saveTemplate(currentLang, ta.value);
+      overlay.remove();
+      const btn = document.getElementById('lbtn-template');
+      if (btn) {
+        const orig = btn.textContent;
+        btn.textContent = '✓ Saved!';
+        btn.style.color = 'var(--ui-accent)';
+        setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1400);
+      }
+    });
   }
 
   /* ════════════════════════════════════════════════════════════
@@ -789,8 +1154,8 @@ rl.on('close', () => {
     });
     document.addEventListener('mousemove', e => {
       if (!dragging) return;
-      const w   = window.innerWidth;
-      const px  = Math.max(w * 0.2, Math.min(e.clientX, w * 0.75));
+      const w  = window.innerWidth;
+      const px = Math.max(w * 0.2, Math.min(e.clientX, w * 0.75));
       leftPane.style.width = (px / w * 100) + '%';
     });
     document.addEventListener('mouseup', () => {
@@ -799,6 +1164,8 @@ rl.on('close', () => {
       bar.classList.remove('resizing');
       document.body.style.cursor     = '';
       document.body.style.userSelect = '';
+      // Persist the new pane width after drag ends
+      Settings.save();
     });
   }
 

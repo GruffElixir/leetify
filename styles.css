@@ -91,14 +91,51 @@
 #leetify-left-pane::-webkit-scrollbar-thumb:hover { background: var(--lp-text-muted); }
 
 /* ─────────────────────────────────────────────────────
-   NUCLEAR RESET: strip ALL inline styles and background
-   colors that CF injects, so nothing shows black-on-black.
-   This runs first; specific rules below add colours back.
+   NUCLEAR RESET: strip CF’s inline colours.
+   Deliberately EXCLUDES SVG/MathJax elements so that
+   math variables (‹$x$›, ‹$n$›, etc.) stay visible.
 ───────────────────────────────────────────────────── */
-#leetify-left-pane *  {
+#leetify-left-pane *:not(svg):not(path):not(g):not(use)
+              :not(circle):not(rect):not(line):not(defs)
+              :not(symbol):not(clipPath):not(mask) {
   background-color: transparent !important;
   color: var(--lp-text) !important;
   border-color: var(--lp-border) !important;
+}
+
+/* SVG elements used by MathJax: inherit colour from parent */
+#leetify-left-pane svg {
+  color: var(--lp-text);
+  fill: currentColor;
+  overflow: visible;
+}
+#leetify-left-pane svg path,
+#leetify-left-pane svg rect,
+#leetify-left-pane svg use,
+#leetify-left-pane svg circle,
+#leetify-left-pane svg line,
+#leetify-left-pane svg g { fill: currentColor; }
+
+/* Force global MathJax SVG definitions (which live outside our pane) 
+   to inherit currentColor when referenced by <use> tags inside our pane */
+svg[id^="MathJax_SVG"] path,
+svg[id^="MathJax_SVG"] rect,
+svg[id^="MathJax_SVG"] use,
+svg[id^="MathJax_SVG"] g {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+/* MathJax HTML-CSS / CHTML output containers */
+#leetify-left-pane .MathJax,
+#leetify-left-pane .MathJax_SVG,
+#leetify-left-pane .MathJax_Display,
+#leetify-left-pane mjx-container,
+#leetify-left-pane mjx-math,
+#leetify-left-pane [class^="mjx-"],
+#leetify-left-pane [class^="MathJax"] {
+  color: var(--lp-text) !important;
+  background: transparent !important;
 }
 
 /* ── Problem-statement wrapper ── */
@@ -323,6 +360,110 @@
   background: var(--lp-bg-subtle) !important;
   color: var(--mk-fg) !important;
   font-weight: 600 !important;
+}
+
+/* ── Problem navigator ── */
+#leetify-prob-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--lp-border);
+  background: var(--lp-bg-subtle);
+  flex-shrink: 0;
+}
+#leetify-prob-nav:empty { display: none; }
+
+.prob-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  text-decoration: none;
+  border: 1px solid var(--lp-border);
+  color: var(--lp-text-muted);
+  background: var(--lp-bg-raise);
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+.prob-tab:hover {
+  border-color: var(--lp-cyan);
+  color: var(--lp-cyan);
+  background: rgba(102,217,232,0.08);
+}
+.prob-tab.active {
+  border-color: var(--lp-accent);
+  color: var(--lp-accent);
+  background: rgba(166,226,46,0.1);
+  box-shadow: 0 0 8px rgba(166,226,46,0.2);
+}
+
+/* ── Template modal ── */
+#leetify-tpl-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.tpl-box {
+  width: min(640px, 90%);
+  background: var(--mk-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+.tpl-header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-panel);
+}
+.tpl-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ui-text);
+}
+.tpl-lang { color: var(--ui-accent); }
+.tpl-hint {
+  font-size: 11px;
+  color: var(--ui-muted);
+}
+.tpl-editor {
+  flex: 1;
+  min-height: 320px;
+  padding: 14px 16px;
+  background: var(--mk-bg-dark, #1e1f1c);
+  color: var(--mk-fg);
+  border: none;
+  outline: none;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  line-height: 21px;
+  resize: none;
+  tab-size: 4;
+}
+.tpl-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--ui-border);
+  background: var(--ui-panel);
 }
 
 /* ── Exit button ── */
