@@ -360,42 +360,6 @@ rl.on('close', () => {
     }
   }
 
-  /**
-   * Fix math colours on a cloned problem-statement node so that
-   * MathJax/KaTeX SVG and CHTML output is visible on a dark background.
-   *
-   * Strategy: strip explicit black fill/stroke ATTRIBUTES from SVG elements
-   * (so they fall back to CSS `fill: currentColor`) and remove inline
-   * `color:#000` styles from HTML elements (so CSS `color: var(--lp-text)`
-   * can take effect).
-   */
-  function fixMathColors(root) {
-    const DARK = /^(#000(000)?|black|rgb\(\s*0\s*,\s*0\s*,\s*0\s*\))$/i;
-
-    // Process all elements (SVG and HTML) in one pass
-    root.querySelectorAll('*').forEach(el => {
-      const s = el.style;
-      if (!s) return; // safeguard
-
-      // Strip explicit dark inline styles
-      if (s.color && DARK.test(s.color.trim()))    s.removeProperty('color');
-      if (s.fill  && DARK.test(s.fill.trim()))     s.setProperty('fill', 'currentColor');
-      if (s.stroke && DARK.test(s.stroke.trim()))  s.setProperty('stroke', 'currentColor');
-
-      // Fix explicit dark HTML attributes
-      const f = el.getAttribute('fill');
-      if (f && f !== 'none' && DARK.test(f.trim())) el.setAttribute('fill', 'currentColor');
-      
-      const st = el.getAttribute('stroke');
-      if (st && st !== 'none' && DARK.test(st.trim())) el.setAttribute('stroke', 'currentColor');
-    });
-
-    // Ensure MathJax SVG roots inherit our text color explicitly
-    root.querySelectorAll('svg').forEach(el => {
-      if (!el.style.color) el.style.color = 'var(--lp-text, #d6d4cc)';
-    });
-  }
-
   function activateSplit() {
     // Phase 1 – synchronous DOM scrape (before CF nav is hidden)
     if (contestProblems.length === 0) contestProblems = scrapeContestProblems();
@@ -403,26 +367,16 @@ rl.on('close', () => {
     if (!splitContainer) buildSplitContainer();
     const lp = document.getElementById('leetify-left-pane');
 
-    if (lp && problemStatement) {
-      lp.appendChild(problemStatement);
-
-      // Run immediately for already-rendered math
-      fixMathColors(lp);
-
-      // Codeforces' MathJax often does a delayed "second-pass" render.
-      // Sometimes it even replaces the entire problem-statement element!
-      // Attach the observer to our permanent left pane to ensure we never lose it.
-      if (!lp._leetifyObserver) {
-        const observer = new MutationObserver(() => {
-          observer.disconnect();
-          try {
-            fixMathColors(lp);
-          } catch (e) { console.error('MathJax fix error:', e); }
-          observer.observe(lp, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'fill', 'stroke'] });
-        });
-        observer.observe(lp, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'fill', 'stroke'] });
-        lp._leetifyObserver = observer;
-      }
+    if (lp && problemStatement && !document.getElementById('leetify-ps-wrapper')) {
+      // Wrap problem statement in a container with explicit white bg.
+      // The CSS filter: invert() needs a white background to flip to dark.
+      // CF's .problem-statement has transparent bg (inherits from body),
+      // so without this wrapper, the dark pane bg shows through → black-on-black.
+      const wrapper = document.createElement('div');
+      wrapper.id = 'leetify-ps-wrapper';
+      wrapper.style.cssText = 'background:#fff; color:#000; padding:10px 16px; filter:invert(0.88) hue-rotate(180deg) contrast(1.05);';
+      lp.appendChild(wrapper);
+      wrapper.appendChild(problemStatement);
     }
 
     splitContainer.style.display = 'flex';
@@ -446,8 +400,11 @@ rl.on('close', () => {
 
   function exitSplit() {
     if (!problemStatement || !originalParent) return;
+    // Move problem statement back to its original location
     if (originalNextSib) originalParent.insertBefore(problemStatement, originalNextSib);
     else originalParent.appendChild(problemStatement);
+    // Remove the wrapper we created
+    document.getElementById('leetify-ps-wrapper')?.remove();
 
     if (splitContainer) splitContainer.style.display = 'none';
     document.body.classList.remove('leetify-active');

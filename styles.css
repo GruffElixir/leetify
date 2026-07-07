@@ -51,182 +51,63 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-   LEFT PANE — Problem statement (DARK MODE)
+   LEFT PANE
+   ─────────────────────────────────────────────────────
+   Dark mode strategy:
+     JS wraps .problem-statement inside #leetify-ps-wrapper
+     which has an INLINE style:
+       background: #fff;
+       filter: invert(0.88) hue-rotate(180deg) contrast(1.05);
+     This flips white→dark and black→light at the GPU level.
+     CSS here handles ONLY the pane shell and basic layout.
+     No colour overrides on problem content — the filter
+     does all of it automatically.
 ═══════════════════════════════════════════════════════ */
 
-/* Left pane dark colours (Monokai family) */
 #leetify-left-pane {
-  --lp-bg:          #1e1f1c;   /* same as --mk-bg-dark              */
-  --lp-bg-raise:    #272822;   /* card / raised surface             */
-  --lp-bg-subtle:   #2d2e27;   /* gutter-level, very subtle raise   */
-  --lp-border:      #3e3d32;   /* same as --mk-border               */
-  --lp-text:        #d6d4cc;   /* slightly softer than full #f8f8f2 */
-  --lp-text-muted:  #75715e;   /* muted / meta info                 */
-  --lp-accent:      #a6e22e;   /* Monokai green                     */
-  --lp-cyan:        #66d9e8;   /* Monokai cyan                      */
-  --lp-yellow:      #e6db74;   /* Monokai yellow — inline code      */
-  --lp-orange:      #fd971f;   /* Monokai orange                    */
-  --lp-pink:        #f92672;   /* Monokai pink                      */
-  --lp-purple:      #ae81ff;   /* Monokai purple                    */
-  --lp-pre-bg:      #272822;   /* pre / code block bg               */
-  --lp-pre-border:  #49483e;   /* pre border                        */
-
   width: 40%;
   height: 100%;
   overflow-y: auto;
-  background: var(--lp-bg);
-  padding: 24px 24px 100px;
+  background: #1e1f1c;
+  padding: 0 0 100px;
   box-sizing: border-box;
-  color: var(--lp-text);
+  color: #d6d4cc;
   position: relative;
-  border-right: 2px solid var(--ui-border);
+  border-right: 2px solid #3e3d32;
   font-size: 14px;
   line-height: 1.75;
 }
 
-/* Dark scrollbar */
+/* Scrollbar */
 #leetify-left-pane::-webkit-scrollbar { width: 6px; }
-#leetify-left-pane::-webkit-scrollbar-track { background: var(--lp-bg); }
+#leetify-left-pane::-webkit-scrollbar-track { background: #1e1f1c; }
 #leetify-left-pane::-webkit-scrollbar-thumb { background: #49483e; border-radius: 3px; }
-#leetify-left-pane::-webkit-scrollbar-thumb:hover { background: var(--lp-text-muted); }
+#leetify-left-pane::-webkit-scrollbar-thumb:hover { background: #75715e; }
 
-/* ─────────────────────────────────────────────────────
-   NUCLEAR RESET: strip CF’s inline colours.
-   Deliberately EXCLUDES SVG/MathJax elements so that
-   math variables (‹$x$›, ‹$n$›, etc.) stay visible.
-───────────────────────────────────────────────────── */
-#leetify-left-pane *:not(svg):not(path):not(g):not(use)
-              :not(circle):not(rect):not(line):not(defs)
-              :not(symbol):not(clipPath):not(mask) {
-  background-color: transparent !important;
-  color: var(--lp-text) !important;
-  border-color: var(--lp-border) !important;
+/* ── Counter-invert images inside the inverted wrapper ── */
+#leetify-ps-wrapper img {
+  filter: invert(1) hue-rotate(180deg);
 }
 
-/* SVG elements used by MathJax: inherit colour from parent */
-#leetify-left-pane svg {
-  color: var(--lp-text);
-  fill: currentColor;
-  overflow: visible;
-}
-#leetify-left-pane svg path,
-#leetify-left-pane svg rect,
-#leetify-left-pane svg use,
-#leetify-left-pane svg circle,
-#leetify-left-pane svg line,
-#leetify-left-pane svg g { fill: currentColor; }
-
-/* Force global MathJax SVG definitions (which live outside our pane) 
-   to inherit currentColor when referenced by <use> tags inside our pane */
-svg[id^="MathJax_SVG"] path,
-svg[id^="MathJax_SVG"] rect,
-svg[id^="MathJax_SVG"] use,
-svg[id^="MathJax_SVG"] g {
-  fill: currentColor;
-  stroke: currentColor;
-}
-
-/* MathJax HTML-CSS / CHTML output containers */
-#leetify-left-pane .MathJax,
-#leetify-left-pane .MathJax_SVG,
-#leetify-left-pane .MathJax_Display,
-#leetify-left-pane mjx-container,
-#leetify-left-pane mjx-math,
-#leetify-left-pane [class^="mjx-"],
-#leetify-left-pane [class^="MathJax"] {
-  color: var(--lp-text) !important;
-  background: transparent !important;
-}
-
-/* ── Problem-statement wrapper ── */
-#leetify-left-pane .problem-statement {
+/* ── Layout tweaks inside the wrapper ── */
+#leetify-ps-wrapper .problem-statement {
   margin: 0 !important;
   max-width: 100% !important;
   border: none !important;
   padding: 0 !important;
   box-shadow: none !important;
 }
-
-/* ── Header: title + meta ── */
-#leetify-left-pane .problem-statement .header {
+#leetify-ps-wrapper .problem-statement .header {
   margin-bottom: 20px !important;
   padding-bottom: 16px !important;
-  border-bottom: 1px solid var(--lp-border) !important;
 }
-
-#leetify-left-pane .problem-statement .header .title {
-  font-size: 19px !important;
-  font-weight: 700 !important;
-  color: var(--mk-fg) !important;   /* brightest text for the title */
-  margin-bottom: 8px !important;
-  line-height: 1.3 !important;
-  letter-spacing: -0.01em !important;
-}
-
-/* property-title = "time limit", "memory limit" labels */
-#leetify-left-pane .property-title {
-  display: inline !important;
-  font-weight: 600 !important;
-  color: var(--lp-text-muted) !important;
-  font-size: 12px !important;
-}
-
-/* time limit / memory limit values */
-#leetify-left-pane .problem-statement .header > div:not(.title) {
-  font-size: 12px !important;
-  color: var(--lp-text-muted) !important;
-  margin: 3px 0 !important;
-}
-
-/* ── Section headings (Input, Output, Examples, Note) ── */
-#leetify-left-pane .section-title {
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  color: var(--lp-accent) !important;
-  margin: 1.6em 0 0.6em !important;
-  padding: 4px 0 4px 10px !important;
-  border-left: 3px solid var(--lp-accent) !important;
-  border-bottom: none !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.1em !important;
-  background: rgba(166,226,46,0.06) !important;
-  border-radius: 0 4px 4px 0 !important;
-}
-
-/* ── Body paragraphs ── */
-#leetify-left-pane .problem-statement p {
-  color: var(--lp-text) !important;
-  margin: 0.65em 0 !important;
-}
-
-/* ── Inline code / monospace text ── */
-#leetify-left-pane .tex-font-style-tt,
-#leetify-left-pane code,
-#leetify-left-pane tt {
+#leetify-ps-wrapper .tex-font-style-tt,
+#leetify-ps-wrapper code,
+#leetify-ps-wrapper tt {
   font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
-  background: var(--lp-bg-subtle) !important;
-  color: var(--lp-yellow) !important;
-  padding: 1px 5px !important;
-  border-radius: 3px !important;
   font-size: 0.88em !important;
-  border: 1px solid var(--lp-pre-border) !important;
 }
-
-/* Math italic variables */
-#leetify-left-pane .tex-font-style-it,
-#leetify-left-pane i { font-style: italic !important; color: var(--lp-cyan) !important; }
-
-/* Bold emphasis */
-#leetify-left-pane b,
-#leetify-left-pane strong { color: var(--mk-fg) !important; font-weight: 700 !important; }
-
-/* ── Generic pre blocks (constraints etc.) ── */
-#leetify-left-pane pre {
-  background: var(--lp-pre-bg) !important;
-  color: var(--lp-text) !important;
-  border: 1px solid var(--lp-pre-border) !important;
-  border-radius: 6px !important;
-  padding: 12px 14px !important;
+#leetify-ps-wrapper pre {
   font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
   font-size: 13px !important;
   line-height: 1.6 !important;
@@ -235,41 +116,23 @@ svg[id^="MathJax_SVG"] g {
   margin: 8px 0 !important;
 }
 
-/* ════════════════════════════════════════════════════════
-   TEST CASES — full dark treatment, fix black-on-black
-   CF emits: .sample-tests > .sample-test > .input/.output
-   Each .input/.output has .title + <pre>.
-   CF also emits .test-example-line.input/output.even/odd
-   divs, and sometimes inline background-color on elements.
-   The nuclear reset above strips inline bg; rules below
-   re-apply dark colours explicitly.
-════════════════════════════════════════════════════════ */
-#leetify-left-pane .sample-tests {
-  margin-top: 0.5em !important;
-}
-
-/* Each test case pair (input + output side by side) */
-#leetify-left-pane .sample-test {
+/* ── Test cases ── */
+#leetify-ps-wrapper .sample-test {
   display: flex !important;
   gap: 10px !important;
   margin-bottom: 14px !important;
   flex-wrap: wrap !important;
 }
-
-#leetify-left-pane .sample-test .input,
-#leetify-left-pane .sample-test .output {
+#leetify-ps-wrapper .sample-test .input,
+#leetify-ps-wrapper .sample-test .output {
   flex: 1 !important;
   min-width: 100px !important;
-  background: var(--lp-bg-raise) !important;
-  border: 1px solid var(--lp-pre-border) !important;
   border-radius: 8px !important;
   overflow: hidden !important;
   padding: 0 !important;
 }
-
-/* Input/Output label inside card */
-#leetify-left-pane .sample-test .input > .title,
-#leetify-left-pane .sample-test .output > .title {
+#leetify-ps-wrapper .sample-test .input > .title,
+#leetify-ps-wrapper .sample-test .output > .title {
   display: block !important;
   font-size: 10px !important;
   font-weight: 700 !important;
@@ -277,42 +140,14 @@ svg[id^="MathJax_SVG"] g {
   letter-spacing: 0.1em !important;
   padding: 6px 12px !important;
   margin: 0 !important;
-  border-bottom: 1px solid var(--lp-pre-border) !important;
-  border-radius: 0 !important;
-  background: var(--lp-bg-subtle) !important;
 }
-#leetify-left-pane .sample-test .input > .title {
-  color: var(--lp-cyan) !important;
-}
-#leetify-left-pane .sample-test .output > .title {
-  color: var(--lp-accent) !important;
-}
-
-/* The actual test data <pre> inside each card */
-#leetify-left-pane .sample-test .input pre,
-#leetify-left-pane .sample-test .output pre,
-#leetify-left-pane .sample-test pre {
-  background: var(--lp-bg-raise) !important;
-  color: var(--mk-fg) !important;           /* always bright white text */
+#leetify-ps-wrapper .sample-test pre {
   border: none !important;
   border-radius: 0 !important;
   padding: 10px 12px !important;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
-  font-size: 13px !important;
-  line-height: 1.6 !important;
-  overflow-x: auto !important;
-  white-space: pre !important;
   margin: 0 !important;
 }
-
-/* CF sometimes uses .test-example-line wrappers with inline styles */
-#leetify-left-pane .test-example-line,
-#leetify-left-pane .test-example-line.input,
-#leetify-left-pane .test-example-line.output,
-#leetify-left-pane .test-example-line.even,
-#leetify-left-pane .test-example-line.odd {
-  background: var(--lp-bg-raise) !important;
-  color: var(--mk-fg) !important;
+#leetify-ps-wrapper .test-example-line {
   border: none !important;
   padding: 0 !important;
   font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
@@ -320,46 +155,9 @@ svg[id^="MathJax_SVG"] g {
   line-height: 1.6 !important;
   display: block !important;
 }
-
-/* ── Note / hint box ── */
-#leetify-left-pane .note {
-  background: rgba(166,226,46,0.06) !important;
-  border-left: 3px solid var(--lp-accent) !important;
-  border-radius: 0 6px 6px 0 !important;
+#leetify-ps-wrapper .note {
   padding: 12px 16px !important;
-  color: var(--lp-text) !important;
   margin-top: 1em !important;
-}
-
-/* ── Image (diagrams in problems) — give them a subtle dark bg ── */
-#leetify-left-pane img {
-  background: var(--lp-bg-raise) !important;
-  border-radius: 6px !important;
-  max-width: 100% !important;
-  height: auto !important;
-  border: 1px solid var(--lp-pre-border) !important;
-  padding: 4px !important;
-  display: block !important;
-  margin: 8px auto !important;
-}
-
-/* ── Tables (some CF problems have table constraints) ── */
-#leetify-left-pane table {
-  border-collapse: collapse !important;
-  width: 100% !important;
-  margin: 8px 0 !important;
-}
-#leetify-left-pane th,
-#leetify-left-pane td {
-  border: 1px solid var(--lp-pre-border) !important;
-  padding: 6px 10px !important;
-  color: var(--lp-text) !important;
-  background: var(--lp-bg-raise) !important;
-}
-#leetify-left-pane th {
-  background: var(--lp-bg-subtle) !important;
-  color: var(--mk-fg) !important;
-  font-weight: 600 !important;
 }
 
 /* ── Problem navigator ── */
@@ -368,8 +166,8 @@ svg[id^="MathJax_SVG"] g {
   flex-wrap: wrap;
   gap: 5px;
   padding: 10px 14px 8px;
-  border-bottom: 1px solid var(--lp-border);
-  background: var(--lp-bg-subtle);
+  border-bottom: 1px solid #3e3d32;
+  background: #2d2e27;
   flex-shrink: 0;
 }
 #leetify-prob-nav:empty { display: none; }
@@ -386,20 +184,20 @@ svg[id^="MathJax_SVG"] g {
   font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
   text-decoration: none;
-  border: 1px solid var(--lp-border);
-  color: var(--lp-text-muted);
-  background: var(--lp-bg-raise);
+  border: 1px solid #3e3d32;
+  color: #75715e;
+  background: #272822;
   transition: all 0.15s;
   letter-spacing: 0.04em;
 }
 .prob-tab:hover {
-  border-color: var(--lp-cyan);
-  color: var(--lp-cyan);
+  border-color: #66d9e8;
+  color: #66d9e8;
   background: rgba(102,217,232,0.08);
 }
 .prob-tab.active {
-  border-color: var(--lp-accent);
-  color: var(--lp-accent);
+  border-color: #a6e22e;
+  color: #a6e22e;
   background: rgba(166,226,46,0.1);
   box-shadow: 0 0 8px rgba(166,226,46,0.2);
 }
@@ -476,9 +274,9 @@ svg[id^="MathJax_SVG"] g {
   display: flex;
   align-items: center;
   gap: 7px;
-  background: var(--lp-bg-subtle) !important;
-  border: 1px solid var(--lp-border) !important;
-  color: var(--lp-text-muted) !important;
+  background: #2d2e27 !important;
+  border: 1px solid #3e3d32 !important;
+  color: #75715e !important;
   padding: 7px 16px;
   border-radius: 20px;
   cursor: pointer;
@@ -810,9 +608,7 @@ body.leetify-active {
   overflow: hidden !important;
   background: var(--ui-bg) !important;
 }
-body.leetify-active > :not(#leetify-split-container):not(#leetify-activate-btn) {
-  display: none !important;
-}
+/* (Body child hiding rule removed to prevent breaking MathJax's external dependencies) */
 
 /* ── Activate button (shown after exit) ── */
 #leetify-activate-btn {
