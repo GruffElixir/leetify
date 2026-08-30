@@ -15,7 +15,7 @@ function responseFor(url, body, options = {}) {
   };
 }
 
-function createBackgroundHarness({ runtimes, execution, executionOk = true, executionStatus = 200, executionText } = {}) {
+function createBackgroundHarness({ runtimes, execution, executionOk = true, executionStatus = 200, executionText, fetchError } = {}) {
   let listener;
   const requests = [];
   const runtimeList = runtimes || [
@@ -40,6 +40,7 @@ function createBackgroundHarness({ runtimes, execution, executionOk = true, exec
     clearTimeout,
     fetch: async (url, options = {}) => {
       requests.push({ url: String(url), options });
+      if (fetchError) throw fetchError;
       if (String(url).endsWith('/runtimes')) return responseFor(url, runtimeList);
       if (executionText !== undefined) return responseFor(url, executionText, { ok: executionOk, status: executionStatus });
       return responseFor(url, execution || { run: { stdout: 'ok\n', stderr: '', code: 0 } }, { ok: executionOk, status: executionStatus });
@@ -105,6 +106,23 @@ test('runner health check validates the configured runtimes endpoint', async () 
   assert.equal(result.ok, true);
   assert.equal(result.url, DEFAULT_ENDPOINT);
   assert.equal(result.runtimeCount, 4);
+});
+
+test('runner turns a Firefox network error into an actionable local setup message', async () => {
+  const harness = createBackgroundHarness({ fetchError: new Error('NetworkError when attempting to fetch resource.') });
+  const result = await harness.listener({ type: 'RUN_CODE', language: 'python', code: 'print(1)', endpoint: DEFAULT_ENDPOINT });
+  assert.equal(result.ok, false);
+  assert.match(result.error, /Could not connect to the local runner/i);
+  assert.match(result.error, /Start Piston/i);
+  assert.match(result.error, /127\.0\.0\.1:2000/i);
+});
+
+test('runner health check uses the same actionable message for an unavailable local service', async () => {
+  const harness = createBackgroundHarness({ fetchError: new Error('NetworkError when attempting to fetch resource.') });
+  const result = await harness.listener({ type: 'CHECK_RUNNER', endpoint: DEFAULT_ENDPOINT });
+  assert.equal(result.ok, false);
+  assert.match(result.error, /Could not connect to the local runner/i);
+  assert.match(result.error, /Start Piston/i);
 });
 
 test('background submission preserves credentials without putting CSRF in the URL', async () => {

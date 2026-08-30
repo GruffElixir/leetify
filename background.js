@@ -60,6 +60,24 @@
     return url;
   }
 
+  function isLocalRunnerUrl(url) {
+    if (!url) return false;
+    return ['127.0.0.1', 'localhost', '[::1]', '::1'].includes(String(url.hostname || '').toLowerCase());
+  }
+
+  function formatRunnerError(error, endpointUrl) {
+    const raw = error && error.message ? String(error.message) : '';
+    const looksLikeNetworkFailure = /networkerror|failed to fetch|network request failed|connection refused|could not connect|fetch failed/i.test(raw);
+    if (!looksLikeNetworkFailure) return raw || 'Runner request failed.';
+
+    const origin = endpointUrl ? endpointUrl.origin : 'the configured runner';
+    if (isLocalRunnerUrl(endpointUrl)) {
+      const runtimePath = endpointUrl ? runtimesEndpoint(endpointUrl).pathname : '/api/v2/runtimes';
+      return `Could not connect to the local runner at ${origin}. Start Piston and verify ${runtimePath} is available, or choose another endpoint in Leetify Options.`;
+    }
+    return `Could not reach the runner at ${origin}. Check that it is online, grant endpoint access in Leetify Options, and allow cross-origin requests.`;
+  }
+
   function runtimesEndpoint(executeUrl) {
     const url = new URL(executeUrl.href || executeUrl);
     const path = url.pathname.replace(/\/+$/, '');
@@ -155,7 +173,7 @@
           version = (await chooseRuntime(endpointUrl, language, controller.signal)).version;
         } catch (error) {
           if (error && error.name === 'AbortError') throw error;
-          return { ok: false, error: error && error.message ? error.message : 'Could not discover a runner runtime.' };
+          return { ok: false, error: formatRunnerError(error, endpointUrl) || 'Could not discover a runner runtime.' };
         }
       }
 
@@ -204,7 +222,7 @@
       if (error && error.name === 'AbortError') {
         return { ok: false, cancelled: true, error: 'Run cancelled.' };
       }
-      return { ok: false, error: error && error.message ? error.message : 'Runner request failed.' };
+      return { ok: false, error: formatRunnerError(error, endpointUrl) };
     } finally {
       activeRuns.delete(id);
     }
@@ -218,7 +236,7 @@
       const runtimes = await fetchRuntimes(endpointUrl);
       return { ok: true, url: endpointUrl.href, runtimeCount: runtimes.length };
     } catch (error) {
-      return { ok: false, url: endpointUrl.href, error: error && error.message ? error.message : 'Runner health check failed.' };
+      return { ok: false, url: endpointUrl.href, error: formatRunnerError(error, endpointUrl) || 'Runner health check failed.' };
     }
   }
 

@@ -33,7 +33,15 @@ The extension opens split view automatically by default. Disable automatic activ
 
 ## Sample runner
 
-The default endpoint is the local Piston service at `http://127.0.0.1:2000/api/v2/execute`. The extension discovers an installed runtime from the endpoint's `/runtimes` route before executing code, so it does not depend on stale compiler versions. Start a self-hosted Piston instance or configure another trusted Piston-compatible endpoint in Options, then use **Test runner** to verify access.
+The default endpoint is the local Piston service at `http://127.0.0.1:2000/api/v2/execute`. The extension discovers an installed runtime from the endpoint's `/runtimes` route before executing code, so it does not depend on stale compiler versions. The runner is a separate service; if nothing is listening on port `2000`, Leetify reports how to fix the connection instead of treating it as a Codeforces error.
+
+For a quick local start with Docker, run the official Piston image with port `2000` exposed:
+
+```text
+docker run --privileged --detach --name leetify-piston --publish 2000:2000 ghcr.io/engineer-man/piston
+```
+
+Install the language runtimes you need using Piston's CLI, then open Leetify Options and press **Test runner**. If you already host a Piston-compatible service elsewhere, put its `/api/v2/execute` URL in Options, grant the requested endpoint access, and run the same check.
 
 The previously shared public Piston API is not a dependable default: its maintainers now require authorization for public access. See the [Piston public API notice](https://github.com/engineer-man/piston#public-api) and [self-hosting API documentation](https://github.com/engineer-man/piston#api) for current requirements.
 
