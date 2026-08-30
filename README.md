@@ -1,49 +1,73 @@
-# Leetify Codeforces Browser Extension
+# Leetify Codeforces
 
-A Firefox (Manifest V3) browser extension that creates a split-pane layout on Codeforces problem pages. The left pane shows the original problem statement (with all MathJax equations and formatting intact) and the right pane contains a built-in code editor environment designed to feel like a premium code editor.
+Leetify turns Codeforces problem pages into a focused, split-pane coding workspace for Firefox. It keeps the problem statement visible while providing a persistent editor, contest navigation, templates, sample execution, and submission helpers.
 
 ## Features
 
-- **Split-Pane Layout**: Side-by-side view of the problem statement and your code.
-- **Built-in Editor**: A lightweight, zero-dependency code editor with syntax highlighting.
-- **Customizable**: Resizable panes (drag the middle divider).
-- **Toggle View**: Easily switch between the standard Codeforces view and the split-pane layout.
-- **Dark Theme**: Eye-friendly dark theme that contrasts well with the problem statement.
+- Side-by-side or stacked problem/editor layouts.
+- C++, Python, Java, and JavaScript editing with lightweight syntax highlighting.
+- Per-problem, per-language autosave using Firefox extension storage.
+- Named templates with an active template per language.
+- Sample extraction from Codeforces and Run selected / Run all test cases.
+- Optional debounced auto-run of all samples after editing stops.
+- Configurable Piston-compatible runner endpoint, with runtime discovery and an explicit health check.
+- Contest and gym problem navigation without leaving the workspace.
+- Safer submission preparation using the current Codeforces submit form and language list.
+- Submission status polling and a link to the relevant status page.
+- Resizable panes with pointer and keyboard controls.
+- Focus mode, word wrap, font controls, themes, responsive layout, and backup/restore.
+- Toolbar action and `Ctrl+Shift+L` / `Cmd+Shift+L` split-view shortcut.
 
-## Installation
+## Installation in Firefox
 
-### Firefox (Local Testing)
+Firefox 128 or newer is required.
+
 1. Clone or download this repository.
-2. Open your **Firefox** browser.
-3. In the URL bar, type **`about:debugging`** and press **Enter**.
-4. Click on **"This Firefox"** in the left sidebar.
-5. Click the **"Load Temporary Add-on..."** button.
-6. Navigate to the folder containing this extension and select `manifest.json`.
+2. Open Firefox and navigate to `about:debugging`.
+3. Select **This Firefox**.
+4. Select **Load Temporary Add-on…**.
+5. Choose this project's `manifest.json`.
+6. Open a Codeforces contest, gym, or problemset problem page.
 
-## Usage
+The extension opens split view automatically by default. Disable automatic activation under the extension's options page if you prefer the floating **Split View** button.
 
-1. Navigate to any Codeforces problem page (e.g., `https://codeforces.com/problemset/problem/4/A`).
-2. The page will automatically transform into the split-pane workspace.
-3. Use the middle divider to drag and resize both windows.
-4. Click **"Exit Split View"** on the bottom left to return to the default Codeforces view.
-5. Click the floating **"Split Layout"** button on the bottom right to restore split-pane mode.
+## Sample runner
 
-## Contributing
+The default endpoint is the local Piston service at `http://127.0.0.1:2000/api/v2/execute`. The extension discovers an installed runtime from the endpoint's `/runtimes` route before executing code, so it does not depend on stale compiler versions. Start a self-hosted Piston instance or configure another trusted Piston-compatible endpoint in Options, then use **Test runner** to verify access.
 
-We welcome contributions from the FOSS community! If you'd like to improve Leetify, please follow these steps:
+The previously shared public Piston API is not a dependable default: its maintainers now require authorization for public access. See the [Piston public API notice](https://github.com/engineer-man/piston#public-api) and [self-hosting API documentation](https://github.com/engineer-man/piston#api) for current requirements.
 
-1. Fork the repository.
-2. Create a new branch for your feature or bugfix (`git checkout -b feature/your-feature-name`).
-3. Make your changes and test them locally.
-4. Commit your changes (`git commit -m 'Add some feature'`).
-5. Push to the branch (`git push origin feature/your-feature-name`).
-6. Open a Pull Request.
+The extension never executes arbitrary source code inside the Codeforces page. The background worker sends it to the configured sandbox and returns separate compile/run diagnostics, stdout, stderr, exit status, and a sample comparison. Auto-run is opt-in and disabled by default.
 
-### Development Guidelines
-- Keep the codebase lightweight and dependency-free where possible.
-- Ensure compatibility with Firefox Manifest V3.
-- Test your changes thoroughly on various Codeforces problem pages.
+## Keyboard shortcuts
+
+When the editor is focused:
+
+- `Ctrl+/` or `Cmd+/`: Toggle line comments.
+- `Ctrl+D` or `Cmd+D`: Duplicate the current line.
+- `Tab`: Indent by four spaces.
+- `Shift+Tab`: Dedent by up to four spaces or one tab.
+- `Home`: Toggle between line start and first non-space character.
+
+Global:
+
+- `Ctrl+Shift+L` or `Cmd+Shift+L`: Toggle split view.
+
+## Development
+
+This project intentionally has no runtime dependency bundle. Node.js is used only for static checks and unit tests:
+
+```text
+npm test
+npm run check
+```
+
+The tests cover URL parsing, problem identity, output comparison, Codeforces language labels, runner discovery and failure responses, manifest permissions, and CSS invariants. Browser testing should cover logged-in and logged-out states, contest/gym/problemset routes, navigation history, MathJax, images, large files, responsive pane resizing, runner failures, and submission failures.
+
+## Privacy and permissions
+
+The extension needs access to Codeforces problem pages and its configured runner host. Solutions are stored as independent per-problem records and templates/settings/history use separate storage records, reducing cross-tab overwrites. Source code is sent to the runner only when the user chooses to run it. Submitting remains an explicit user action and uses the user's active Codeforces session.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT. See [LICENSE](LICENSE).

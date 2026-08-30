@@ -1,20 +1,51 @@
 {
   "manifest_version": 3,
   "name": "Leetify Codeforces",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A split-pane coding environment directly on Codeforces problem pages.",
   "permissions": [
-    "activeTab"
+    "activeTab",
+    "storage"
   ],
+  "host_permissions": [
+    "*://codeforces.com/*",
+    "*://www.codeforces.com/*",
+    "http://127.0.0.1:2000/*"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "action": {
+    "default_title": "Toggle Leetify split view"
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "commands": {
+    "toggle-split-view": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L",
+        "mac": "MacCtrl+Shift+L"
+      },
+      "description": "Toggle Leetify split view"
+    }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
   "content_scripts": [
     {
       "matches": [
         "*://codeforces.com/contest/*/problem/*",
+        "*://codeforces.com/gym/*/problem/*",
         "*://codeforces.com/problemset/problem/*",
         "*://www.codeforces.com/contest/*/problem/*",
+        "*://www.codeforces.com/gym/*/problem/*",
         "*://www.codeforces.com/problemset/problem/*"
       ],
-      "js": ["content.js"],
+      "js": ["core.js", "content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"
     }
@@ -22,7 +53,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "leetify-cf@yourdomain.com",
-      "strict_min_version": "109.0"
+      "strict_min_version": "128.0"
     }
   }
 }

@@ -1,0 +1,10 @@
+{
+  "name": "leetify-codeforces",
+  "version": "2.0.0",
+  "private": true,
+  "description": "A Firefox extension that turns Codeforces problem pages into a focused coding workspace.",
+  "scripts": {
+    "check": "node --check core.js && node --check content.js && node --check background.js && node --check options.js",
+    "test": "node --test tests/core.test.js tests/background.test.js tests/manifest.test.js tests/static.test.js"
+  }
+}

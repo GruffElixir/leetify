@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Leetify settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main class="settings-shell">
+    <header class="settings-header">
+      <p class="eyebrow">LEETIFY CODEFORCES</p>
+      <h1>Workspace settings</h1>
+      <p class="lede">Tune the editor once and carry your solutions, templates, and preferences between problems.</p>
+    </header>
+
+    <section class="settings-card" aria-labelledby="workspace-title">
+      <h2 id="workspace-title">Workspace</h2>
+      <label>
+        Default language
+        <select id="default-language">
+          <option value="cpp">C++</option>
+          <option value="python">Python</option>
+          <option value="java">Java</option>
+          <option value="javascript">JavaScript</option>
+        </select>
+      </label>
+      <label>
+        Theme
+        <select id="theme">
+          <option value="monokai">Monokai</option>
+          <option value="midnight">Midnight blue</option>
+          <option value="light">Light</option>
+        </select>
+      </label>
+      <label>
+        Layout
+        <select id="layout">
+          <option value="vertical">Side by side</option>
+          <option value="horizontal">Stacked</option>
+        </select>
+      </label>
+      <label class="check-row">
+        <input id="auto-activate" type="checkbox">
+        <span>Open split view automatically on problem pages</span>
+      </label>
+    </section>
+
+    <section class="settings-card" aria-labelledby="runner-title">
+      <h2 id="runner-title">Sample runner</h2>
+      <p class="card-note">Leetify sends code and sample input to this endpoint. The default is a local Piston instance; use a service you trust if you choose another host.</p>
+      <label>
+        Runner endpoint
+        <input id="runner-endpoint" type="url" spellcheck="false" autocomplete="off">
+      </label>
+      <div class="button-row runner-access-row">
+        <button id="grant-runner-access" type="button" class="secondary">Grant endpoint access</button>
+        <button id="test-runner" type="button" class="secondary">Test runner</button>
+        <span id="runner-access-status" class="status" role="status" aria-live="polite"></span>
+      </div>
+      <label class="check-row">
+        <input id="auto-run-samples" type="checkbox">
+        <span>Run all samples automatically after I stop typing</span>
+      </label>
+      <p class="card-note small-note">Auto-run waits briefly after an edit and uses the configured runner, so enable it only when you are comfortable sending code automatically.</p>
+      <p class="card-note small-note">A custom host needs a one-time Firefox permission grant. The default runner expects Piston at <code>127.0.0.1:2000</code>.</p>
+    </section>
+
+    <section class="settings-card" aria-labelledby="backup-title">
+      <h2 id="backup-title">Backup</h2>
+      <p class="card-note">Export your solutions, templates, and settings before clearing browser data or moving machines.</p>
+      <div class="button-row">
+        <button id="export-data" type="button">Export backup</button>
+        <button id="import-data" type="button" class="secondary">Import backup</button>
+        <input id="import-file" type="file" accept="application/json" hidden>
+      </div>
+      <p id="backup-status" class="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <footer class="settings-footer">
+      <span id="save-status" role="status" aria-live="polite">Loading settings…</span>
+      <button id="save-settings" type="button">Save settings</button>
+    </footer>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>
