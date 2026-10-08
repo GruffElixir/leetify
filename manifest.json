@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Leetify Codeforces",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "A split-pane coding environment directly on Codeforces problem pages.",
   "permissions": [
     "activeTab",
@@ -45,7 +45,7 @@
         "*://www.codeforces.com/gym/*/problem/*",
         "*://www.codeforces.com/problemset/problem/*"
       ],
-      "js": ["core.js", "content.js"],
+      "js": ["content.js"],
       "css": ["styles.css"],
       "run_at": "document_idle"
     }
