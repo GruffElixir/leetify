@@ -12,6 +12,7 @@ import { migrateRecords, mergeDraft, importLegacySite } from './migration.js';
 import { normalizeSettings } from '../domain/settings.js';
 import { isLanguage } from '../domain/languages.js';
 import { LeetifyError } from '../domain/errors.js';
+import { readBackup } from './backup.js';
 export class StorageRepository {
   constructor({ storage, now = Date.now }) {
     this.storage = storage;
@@ -66,7 +67,10 @@ export class StorageRepository {
   patchSettings(patch) {
     if (!object(patch)) throw new LeetifyError('INVALID_DATA', 'Invalid settings.');
     return this.mutate((state) => {
-      state.settings = normalizeSettings({ ...state.settings, ...patch });
+      const next = { ...state.settings, ...patch };
+      for (const field of ['compilerByLang', 'activeTemplateByLang'])
+        if (object(patch[field])) next[field] = { ...state.settings[field], ...patch[field] };
+      state.settings = normalizeSettings(next);
       return state.settings;
     });
   }
@@ -163,32 +167,18 @@ export class StorageRepository {
     };
   }
   async importBackup({ backup, mode = 'merge' }) {
-    let imported;
-    if (backup?.format === 'leetify-backup' && backup.version === 3)
-      imported = validateState(backup.state);
-    else if (
-      backup?.version === 2 &&
-      object(backup.solutions) &&
-      object(backup.settings) &&
-      object(backup.templates)
-    ) {
-      for (const langs of Object.values(backup.solutions)) {
-        if (
-          !object(langs) ||
-          Object.values(langs).some(
-            (e) => typeof e !== 'string' && (!object(e) || typeof e.code !== 'string')
-          )
-        )
-          throw new LeetifyError('INVALID_BACKUP', 'The legacy backup contains invalid solutions.');
-      }
-      imported = migrateRecords({ leetify_state_v1: backup });
-    } else throw new LeetifyError('INVALID_BACKUP', 'Select a valid Leetify backup.');
+    const imported = readBackup(backup);
     if (!['merge', 'replace'].includes(mode))
       throw new LeetifyError('INVALID_DATA', 'Invalid import mode.');
     return this.mutate((state) => {
       if (mode === 'replace') {
         const previous = { ...clone(state), preImportSnapshots: [] };
         const snapshots = state.preImportSnapshots;
+        for (const [key, languages] of Object.entries(imported.solutions))
+          for (const [language, entry] of Object.entries(languages))
+            entry.revision =
+              Math.max(entry.revision, state.solutions[key]?.[language]?.revision || 0) + 1;
+        imported.settings.runnerConsentOrigin = '';
         Object.assign(state, clone(imported));
         state.preImportSnapshots = [
           ...snapshots,
@@ -206,7 +196,22 @@ export class StorageRepository {
             else if (same.code !== entry.code)
               target.push({ ...entry, id: id('tpl'), name: `${entry.name} (imported)` });
           }
-        for (const [key, cases] of Object.entries(imported.cases)) state.cases[key] ||= cases;
+        for (const [key, cases] of Object.entries(imported.cases)) {
+          const target = (state.cases[key] ||= []);
+          for (const sample of cases)
+            if (
+              !target.some(
+                (c) =>
+                  c.input === sample.input &&
+                  c.expected === sample.expected &&
+                  c.hasExpected === sample.hasExpected
+              )
+            )
+              target.push({
+                ...sample,
+                id: target.some((c) => c.id === sample.id) ? id('custom') : sample.id,
+              });
+        }
         for (const draft of imported.recoveredDrafts) recover(state, draft);
         for (const entry of imported.submissions)
           if (!state.submissions.some((s) => s.id === entry.id)) state.submissions.push(entry);

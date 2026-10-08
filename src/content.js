@@ -2,7 +2,7 @@ import { StorageClient } from './storage/client.js';
 import { createNetworkClient } from './platform/messages.js';
 import { SubmissionController } from './submission/controller.js';
 import { WorkspaceController } from './workspace/controller.js';
-import { parseProblemUrl } from './domain/problem.js';
+import { parseProblemUrl, problemKey } from './domain/problem.js';
 const extensionApi = globalThis.browser;
 if (extensionApi?.runtime && parseProblemUrl(window.location.href)) {
   const send = (message) => extensionApi.runtime.sendMessage(message);
@@ -13,17 +13,24 @@ if (extensionApi?.runtime && parseProblemUrl(window.location.href)) {
       const cancel = () =>
         send({ type: 'RUNNER_CANCEL', payload: { requestId: payload.requestId } }).catch(() => {});
       signal?.addEventListener('abort', cancel, { once: true });
-      if (signal?.aborted)
+      if (signal?.aborted) {
+        signal.removeEventListener('abort', cancel);
         return Promise.resolve({
           ok: false,
           error: { code: 'CANCELLED', message: 'Run cancelled.' },
         });
+      }
       return send({ type: 'RUNNER_EXECUTE', payload }).finally(() =>
         signal?.removeEventListener('abort', cancel)
       );
     },
     cancelOwner: () => send({ type: 'RUNNER_CANCEL_OWNER' }).catch(() => {}),
-    grant: (origin) => extensionApi.permissions.request({ origins: [`${origin}/*`] }),
+    grant: async (origin) => {
+      const response = await send({ type: 'RUNNER_PERMISSION', payload: { endpoint: origin } });
+      if (!response?.ok)
+        throw new Error(response?.error?.message || 'Could not check runner permission.');
+      return response.data.granted;
+    },
     openOptions: () => send({ type: 'OPEN_OPTIONS' }),
   };
   let workspace;
@@ -32,7 +39,7 @@ if (extensionApi?.runtime && parseProblemUrl(window.location.href)) {
     repository: storage,
     parseHtml: (html) => new DOMParser().parseFromString(html, 'text/html'),
     onUpdate: (record) => {
-      if (workspace?.active)
+      if (workspace?.active && record.key === problemKey(workspace.current.route))
         workspace.message(
           record.saveError ||
             record.message ||

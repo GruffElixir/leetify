@@ -134,3 +134,12 @@ test('auto-run only follows an actual edit and return navigation preserves origi
     )
   ).toBe(true);
 });
+test('first-run consent works with the restricted content-script API surface', async ({ page }) => {
+  await extension(page, { settings: { runnerConsentOrigin: '' } });
+  await page.getByRole('button', { name: 'Run all', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Allow runner access' })).toBeVisible();
+  expect(await page.evaluate(() => __leetifyTest.executionRequests.length)).toBe(0);
+  await page.getByRole('button', { name: 'Allow runner', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => __leetifyTest.executionRequests.length)).toBe(2);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});

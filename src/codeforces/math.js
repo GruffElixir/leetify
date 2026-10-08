@@ -21,12 +21,18 @@ export function renderRawMath(statement) {
     while ((match = pattern.exec(node.nodeValue))) {
       fragment.append(doc.createTextNode(node.nodeValue.slice(cursor, match.index)));
       const span = doc.createElement('span');
-      span.innerHTML = katex.renderToString(match[2] ?? match[4], {
+      const html = katex.renderToString(match[2] ?? match[4], {
         displayMode: !!match[1],
         throwOnError: false,
         trust: false,
         strict: 'ignore',
       });
+      // KaTeX creates inert markup with trust disabled; adopt it without a live HTML sink.
+      const rendered = new (doc.defaultView || globalThis.window).DOMParser().parseFromString(
+        html,
+        'text/html'
+      );
+      span.append(...Array.from(rendered.body.childNodes, (node) => doc.importNode(node, true)));
       fragment.append(span);
       cursor = pattern.lastIndex;
     }

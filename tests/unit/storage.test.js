@@ -155,3 +155,64 @@ test('replacement failure leaves old storage intact and successful replacement i
   await h.repo.restoreSnapshot(state.preImportSnapshots.at(-1).id);
   assert.equal((await h.repo.readSnapshot()).solutions['cf:4:A'].cpp.code, 'original');
 });
+test('compiler patches preserve independent language preferences', async () => {
+  const h = harness();
+  await h.repo.initialize();
+  await Promise.all([
+    h.repo.patchSettings({ compilerByLang: { cpp: '89' } }),
+    h.repo.patchSettings({ compilerByLang: { python: '70' } }),
+  ]);
+  assert.deepEqual((await h.repo.readSnapshot()).settings.compilerByLang, {
+    cpp: '89',
+    python: '70',
+  });
+});
+test('malformed legacy templates are rejected before any backup write', async () => {
+  const h = harness();
+  await h.repo.initialize();
+  const writes = h.writes;
+  await assert.rejects(
+    h.repo.importBackup({
+      backup: {
+        version: 2,
+        settings: {},
+        solutions: {},
+        templates: { cpp: [{ id: 'x', code: 42 }] },
+      },
+      mode: 'replace',
+    })
+  );
+  assert.equal(h.writes, writes);
+});
+test('replacement advances revisions so an open tab cannot overwrite the imported draft', async () => {
+  const h = harness();
+  await h.repo.initialize();
+  await save(h.repo, 'before');
+  const backup = await h.repo.exportBackup();
+  backup.state.solutions['cf:4:A'].cpp.code = 'imported';
+  await h.repo.importBackup({ backup, mode: 'replace' });
+  assert.equal((await save(h.repo, 'stale tab', 1)).status, 'conflict');
+  assert.equal((await h.repo.readSnapshot()).solutions['cf:4:A'].cpp.code, 'imported');
+});
+test('merging backups retains distinct custom cases with colliding IDs', async () => {
+  const h = harness();
+  await h.repo.initialize();
+  const sample = {
+    id: 'same',
+    name: 'Custom 1',
+    input: 'local',
+    expected: '',
+    hasExpected: false,
+    custom: true,
+  };
+  await h.repo.saveCases({ key: 'cf:4:A', cases: [sample] });
+  const backup = await h.repo.exportBackup();
+  backup.state.cases['cf:4:A'][0].input = 'imported';
+  await h.repo.importBackup({ backup, mode: 'merge' });
+  const cases = (await h.repo.readSnapshot()).cases['cf:4:A'];
+  assert.deepEqual(
+    cases.map((c) => c.input),
+    ['local', 'imported']
+  );
+  assert.notEqual(cases[0].id, cases[1].id);
+});

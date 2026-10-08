@@ -504,13 +504,15 @@ export class WorkspaceController {
       const actions = this.document.createElement('div');
       actions.className = 'lf-dialog-actions';
       const cancel = button(this.document, { label: 'Cancel', text: true });
+      const settings = button(this.document, { label: 'Open runner settings', text: true });
+      settings.addEventListener('click', () => this.runner.openOptions());
       const allow = button(this.document, {
         label: 'Allow runner',
         text: true,
         variant: 'lf-submit',
       });
       content.append(text, actions);
-      actions.append(cancel, allow);
+      actions.append(cancel, settings, allow);
       let settled = false;
       const dialog = openDialog({
         title: 'Allow runner access',

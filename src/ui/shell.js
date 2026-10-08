@@ -1,5 +1,6 @@
 import { button, icon } from './icons.js';
 import { LANGUAGES } from '../domain/languages.js';
+import { bindTabs } from './tabs.js';
 export function createShell({ document: doc, settings, onAction }) {
   const root = doc.createElement('section');
   root.id = 'leetify-workspace';
@@ -9,6 +10,10 @@ export function createShell({ document: doc, settings, onAction }) {
     '<header class="lf-toolbar"><div class="lf-toolbar-start"><a class="lf-brand" href="https://github.com/GruffElixir/leetify" target="_blank" rel="noopener noreferrer"><span class="lf-brand-mark"></span><strong>leetify</strong></a><span class="lf-toolbar-divider"></span><div class="lf-problem-nav"></div></div><div class="lf-primary-actions"></div><div class="lf-toolbar-end"></div></header><div class="lf-mobile-tabs" role="tablist" aria-label="Workspace view"><button role="tab" data-action="mobile-description" aria-selected="true">Description</button><button role="tab" data-action="mobile-code" aria-selected="false">Code</button></div><main class="lf-workspace-main"><section class="lf-description-pane"><div class="lf-pane-head"><div class="lf-statement-tabs" role="tablist" aria-label="Problem view"><button role="tab" data-action="description" aria-selected="true">Description</button><button role="tab" data-action="submissions" aria-selected="false">Submissions</button></div><span class="lf-problem-label"></span></div><div class="lf-statement-scroll"><div class="lf-problem-heading"><h1></h1><div class="lf-meta"></div></div><div class="lf-description"></div></div><div class="lf-submissions" hidden></div></section><div class="lf-pane-splitter" tabindex="0" role="separator" aria-label="Resize description" aria-orientation="vertical"></div><section class="lf-code-pane"><div class="lf-pane-head lf-editor-head"><div class="lf-language"><span class="lf-file-icon"></span><select aria-label="Language"></select></div><span class="lf-save-status" data-status="save" role="status">Saved locally</span><div class="lf-editor-tools"></div></div><div class="lf-editor"></div><div class="lf-test-splitter" role="separator" tabindex="0" aria-label="Resize tests" aria-orientation="horizontal"></div><div class="lf-tests"></div><footer class="lf-statusbar"><span data-status="runner">Runner not connected</span><span data-status="message" role="status"></span><span data-status="cursor">Ln 1, Col 1</span><span class="lf-encoding">UTF-8</span></footer></section></main><div class="lf-toast" role="status" hidden></div>';
   root.querySelector('.lf-brand-mark').append(icon('code', doc));
   root.querySelector('.lf-file-icon').append(icon('code', doc));
+  root
+    .querySelector('.lf-problem-label')
+    .append(button(doc, { label: 'Choose problem', name: 'list', action: 'problems' }));
+  const unbindTabs = bindTabs(root);
   const nav = root.querySelector('.lf-problem-nav');
   nav.append(
     button(doc, { label: 'Previous problem', name: 'chevronLeft', action: 'previous' }),
@@ -96,14 +101,10 @@ export function createShell({ document: doc, settings, onAction }) {
     root.style.setProperty('--lf-pane-height', `${config.paneHeight}%`);
     root.style.setProperty('--lf-test-height', `${config.testHeight}%`);
     root.style.setProperty('--lf-problem-font', `${config.problemFontSize}px`);
-    refs.paneSplitter.setAttribute(
-      'aria-valuenow',
-      config.layout === 'horizontal' ? config.paneHeight : config.paneWidth
-    );
-    refs.paneSplitter.setAttribute(
-      'aria-orientation',
-      config.layout === 'horizontal' ? 'horizontal' : 'vertical'
-    );
+    const stacked =
+      config.layout === 'horizontal' || doc.defaultView.matchMedia('(max-width:899px)').matches;
+    refs.paneSplitter.setAttribute('aria-valuenow', stacked ? config.paneHeight : config.paneWidth);
+    refs.paneSplitter.setAttribute('aria-orientation', stacked ? 'horizontal' : 'vertical');
     refs.testSplitter.setAttribute('aria-valuenow', config.testHeight);
   }
   configure(settings);
@@ -138,6 +139,7 @@ export function createShell({ document: doc, settings, onAction }) {
       cancel.hidden = !value;
     },
     dispose() {
+      unbindTabs();
       root.removeEventListener('click', click);
       select.removeEventListener('change', change);
       root.remove();

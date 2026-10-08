@@ -3,19 +3,13 @@
   "name": "Leetify Codeforces",
   "version": "3.0.0",
   "description": "A split-pane coding environment directly on Codeforces problem pages.",
-  "permissions": [
-    "activeTab",
-    "storage"
-  ],
+  "permissions": ["activeTab", "storage"],
   "host_permissions": [
     "*://codeforces.com/*",
     "*://www.codeforces.com/*",
     "http://127.0.0.1:2000/*"
   ],
-  "optional_host_permissions": [
-    "http://*/*",
-    "https://*/*"
-  ],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
   "action": {
     "default_title": "Toggle Leetify split view"
   },
@@ -53,7 +47,8 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "leetify-cf@yourdomain.com",
-      "strict_min_version": "128.0"
+      "strict_min_version": "128.0",
+      "data_collection_permissions": { "required": ["websiteContent"] }
     }
   }
 }

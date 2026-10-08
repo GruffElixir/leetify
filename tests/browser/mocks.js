@@ -46,6 +46,7 @@ const response = (body, url) => ({
   text: async () => (typeof body === 'string' ? body : JSON.stringify(body)),
 });
 const mockedFetch = async (url, init = {}) => {
+  if (url.includes('/runtimes') && test.emptyRuntimes) return response([], url);
   if (url.includes('/runtimes'))
     return response(
       [
@@ -99,6 +100,7 @@ const runner = new RunnerService({
 });
 const network = new CodeforcesNetwork({ fetch: mockedFetch });
 const extensionApi = {
+  permissions: { contains: async () => !test.denyPermission },
   runtime: {
     id: 'test-extension',
     openOptionsPage: async () => {
@@ -136,3 +138,4 @@ test.toggle = () =>
 test.resolveExecution = (index, result) => test.executionResolvers[index]?.(result);
 test.export = () => repository.exportBackup();
 test.import = (backup) => repository.importBackup(backup);
+if (location.hostname === 'codeforces.com') delete window.browser.permissions;

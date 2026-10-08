@@ -1,4 +1,5 @@
 import { button } from './icons.js';
+import { bindTabs } from './tabs.js';
 export function createTestPanel({
   parent,
   onChange = () => {},
@@ -156,6 +157,7 @@ export function createTestPanel({
     render();
   };
   root.addEventListener('click', click);
+  const unbindTabs = bindTabs(root);
   add.addEventListener('click', () => {
     const entry = {
       id: `custom-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -211,6 +213,7 @@ export function createTestPanel({
       root.querySelector('[data-view=results]').click();
     },
     dispose() {
+      unbindTabs();
       root.removeEventListener('click', click);
       root.remove();
     },

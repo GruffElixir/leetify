@@ -597,6 +597,32 @@ body.leetify-open {
 #leetify-workspace .lf-mobile-tabs {
   display: none;
 }
+#leetify-workspace .lf-problem-label {
+  display: none;
+}
+.leetify-dialog-layer .lf-source-preview {
+  max-height: 230px;
+  overflow: auto;
+  background: var(--lf-editor);
+  border: 1px solid var(--lf-border);
+  border-radius: 7px;
+  padding: 12px;
+  margin: 15px 0;
+}
+.leetify-dialog-layer .lf-problem-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.leetify-dialog-layer .lf-problem-picker > .lf-button {
+  justify-content: flex-start;
+  padding: 10px;
+}
+.leetify-dialog-layer .lf-problem-picker form {
+  display: flex;
+  gap: 8px;
+  margin-top: 15px;
+}
 #leetify-workspace[data-layout='horizontal'] .lf-workspace-main {
   flex-direction: column;
 }
@@ -756,6 +782,9 @@ body.leetify-open {
   }
 }
 @media (max-width: 599px) {
+  #leetify-workspace .lf-problem-label {
+    display: inline-flex;
+  }
   #leetify-workspace .lf-toolbar {
     grid-template-columns: 1fr auto auto;
     gap: 7px;

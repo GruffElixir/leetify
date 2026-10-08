@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Leetify · Settings</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <div class="leetify leetify-options" data-theme="dark">
+      <header class="lf-options-header">
+        <a
+          class="lf-options-brand"
+          href="https://github.com/GruffElixir/leetify"
+          target="_blank"
+          rel="noopener noreferrer"
+          ><span aria-hidden="true">&lt;/&gt;</span><strong>leetify</strong></a
+        ><span>Workspace settings</span
+        ><span class="lf-options-save" data-save-status role="status">Loading…</span
+        ><button type="button" data-retry-settings hidden>Retry settings save</button>
+      </header>
+      <div class="lf-options-layout">
+        <nav aria-label="Settings sections">
+          <a href="#appearance">Appearance</a><a href="#workflow">Workflow</a
+          ><a href="#runner">Code runner</a><a href="#backup">Backup & recovery</a
+          ><a href="#shortcuts">Keyboard shortcuts</a>
+        </nav>
+        <main>
+          <div class="lf-options-intro">
+            <span class="lf-eyebrow">YOUR WORKSPACE, YOUR WAY</span>
+            <h1>Make room for better solutions.</h1>
+            <p>Personalize your editor and keep your drafts safe. Settings save automatically.</p>
+          </div>
+          <section id="appearance" class="lf-settings-card">
+            <header>
+              <h2>Appearance</h2>
+              <p>A comfortable workspace for long problem-solving sessions.</p>
+            </header>
+            <div class="lf-options-fields">
+              <label
+                >Theme<select data-setting="theme">
+                  <option value="dark">Charcoal</option>
+                  <option value="light">Light</option>
+                  <option value="monokai">Monokai</option>
+                </select></label
+              >
+              <label
+                >Layout<select data-setting="layout">
+                  <option value="vertical">Side by side</option>
+                  <option value="horizontal">Stacked</option>
+                </select></label
+              >
+              <label
+                >Editor font size<input
+                  type="number"
+                  min="11"
+                  max="22"
+                  data-setting="fontSize"
+                /><span>11–22 px</span></label
+              >
+              <label
+                >Statement font size<input
+                  type="number"
+                  min="11"
+                  max="30"
+                  data-setting="problemFontSize"
+                /><span>11–30 px</span></label
+              >
+              <label
+                >Description width<input
+                  type="number"
+                  min="20"
+                  max="75"
+                  data-setting="paneWidth"
+                /><span>20–75% in side-by-side mode</span></label
+              >
+              <label
+                >Description height<input
+                  type="number"
+                  min="20"
+                  max="75"
+                  data-setting="paneHeight"
+                /><span>20–75% in stacked mode</span></label
+              >
+              <label
+                >Test drawer height<input
+                  type="number"
+                  min="18"
+                  max="65"
+                  data-setting="testHeight"
+                /><span>18–65% of the editor pane</span></label
+              >
+              <label class="lf-option-check"
+                ><input type="checkbox" data-setting="wrap" /><span
+                  >Wrap long source lines</span
+                ></label
+              >
+              <label class="lf-option-check"
+                ><input type="checkbox" data-setting="focus" /><span
+                  >Start in focus mode</span
+                ></label
+              >
+            </div>
+          </section>
+          <section id="workflow" class="lf-settings-card">
+            <header>
+              <h2>Workflow</h2>
+              <p>Keep manual control of runs and submissions.</p>
+            </header>
+            <div class="lf-options-fields">
+              <label
+                >Default language<select data-setting="defaultLang">
+                  <option value="cpp">C++</option>
+                  <option value="python">Python</option>
+                  <option value="java">Java</option>
+                  <option value="javascript">JavaScript</option>
+                </select></label
+              >
+              <label class="lf-option-check"
+                ><input type="checkbox" data-setting="autoActivate" /><span
+                  >Open Leetify on problem pages</span
+                ></label
+              >
+              <label class="lf-option-check"
+                ><input type="checkbox" data-setting="autoRunSamples" /><span
+                  >Auto-run after source edits<span
+                    >Off by default. Sends source and samples to the approved runner after a short
+                    pause.</span
+                  ></span
+                ></label
+              >
+            </div>
+            <details class="lf-compiler-preferences">
+              <summary>Remembered Codeforces compiler preferences</summary>
+              <p>
+                Submit always refreshes the actual compiler choices for the current problem. Leave
+                an ID empty to choose automatically.
+              </p>
+              <div class="lf-options-fields">
+                <label
+                  >C++ compiler ID<input
+                    data-compiler="cpp"
+                    inputmode="numeric"
+                    placeholder="Automatic" /></label
+                ><label
+                  >Python compiler ID<input
+                    data-compiler="python"
+                    inputmode="numeric"
+                    placeholder="Automatic" /></label
+                ><label
+                  >Java compiler ID<input
+                    data-compiler="java"
+                    inputmode="numeric"
+                    placeholder="Automatic" /></label
+                ><label
+                  >JavaScript compiler ID<input
+                    data-compiler="javascript"
+                    inputmode="numeric"
+                    placeholder="Automatic"
+                /></label>
+              </div>
+            </details>
+          </section>
+          <section id="runner" class="lf-settings-card">
+            <header>
+              <h2>Code runner</h2>
+              <p>Connect your own Piston-compatible service.</p>
+            </header>
+            <label class="lf-endpoint-field"
+              >Execute endpoint<input
+                type="url"
+                data-setting="runnerEndpoint"
+                placeholder="http://127.0.0.1:2000/api/v2/execute"
+            /></label>
+            <p class="lf-runner-disclosure">
+              Running sends your source and test input to the configured runner. Use a service you
+              trust. Leetify has no built-in hosted runner, account, or telemetry.
+            </p>
+            <div class="lf-options-actions">
+              <button type="button" class="lf-button lf-submit" data-grant-runner>
+                Grant runner access</button
+              ><button type="button" class="lf-button" data-check-runner>Check connection</button>
+            </div>
+            <p data-runner-status role="status">Connection has not been checked.</p>
+            <ul class="lf-runtime-list" data-runtimes></ul>
+          </section>
+          <section id="backup" class="lf-settings-card">
+            <header>
+              <h2>Backup & recovery</h2>
+              <p>Export the latest saved data or restore a local backup.</p>
+            </header>
+            <div class="lf-backup-stats" data-backup-stats></div>
+            <button type="button" class="lf-button lf-submit" data-export>
+              Export JSON backup
+            </button>
+            <p class="lf-backup-help">
+              Backups contain your source, templates, custom cases, preferences, and recorded
+              submissions. Keep them private.
+            </p>
+            <label
+              >Backup file<input type="file" accept=".json,application/json" data-backup-file
+            /></label>
+            <div class="lf-options-actions">
+              <button type="button" class="lf-button" data-import="merge">Merge backup</button
+              ><button type="button" class="lf-button lf-danger" data-import="replace">
+                Replace from backup
+              </button>
+            </div>
+            <p data-backup-status role="status">
+              Merge keeps current drafts and preserves different imported source in recovery.
+            </p>
+            <div class="lf-snapshot-tools">
+              <label
+                >Recovery snapshot<select data-snapshots aria-label="Recovery snapshot">
+                  <option value="">No recovery snapshots yet</option>
+                </select></label
+              ><button type="button" class="lf-button" data-restore disabled>
+                Restore snapshot
+              </button>
+            </div>
+            <p class="lf-backup-help">
+              Replacement saves a recoverable copy first. The three most recent pre-import snapshots
+              are kept.
+            </p>
+          </section>
+          <section id="shortcuts" class="lf-settings-card">
+            <header>
+              <h2>Keyboard shortcuts</h2>
+              <p>Stay in the editor while you work.</p>
+            </header>
+            <dl class="lf-shortcut-list">
+              <div>
+                <dt>Toggle workspace</dt>
+                <dd><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>L</kbd></dd>
+              </div>
+              <div>
+                <dt>Run all cases</dt>
+                <dd><kbd>Ctrl</kbd> + <kbd>Enter</kbd></dd>
+              </div>
+              <div>
+                <dt>Review submission</dt>
+                <dd><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Enter</kbd></dd>
+              </div>
+              <div>
+                <dt>Search source</dt>
+                <dd><kbd>Ctrl</kbd> + <kbd>F</kbd></dd>
+              </div>
+              <div>
+                <dt>Toggle comment</dt>
+                <dd><kbd>Ctrl</kbd> + <kbd>/</kbd></dd>
+              </div>
+              <div>
+                <dt>Undo / redo</dt>
+                <dd>
+                  <kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>
+                </dd>
+              </div>
+            </dl>
+            <p class="lf-backup-help">
+              Use ⌘ for editor shortcuts on macOS. Focus a divider and use arrow keys, Home, or End
+              to resize. Escape closes dialogs. Firefox manages the global toggle shortcut in its
+              extension settings.
+            </p>
+          </section>
+          <footer class="lf-options-footer">
+            Leetify 3.0 · Stored locally in your Firefox profile ·
+            <a
+              href="https://github.com/GruffElixir/leetify"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Source code</a
+            >
+          </footer>
+        </main>
+      </div>
+    </div>
+    <script src="options.js"></script>
+  </body>
+</html>

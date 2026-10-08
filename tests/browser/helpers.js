@@ -23,7 +23,14 @@ export async function extension(page, config = {}) {
     content: `window.__testConfig=${JSON.stringify(config)};window.__fixtures=${JSON.stringify(fixtures)};${mocks}`,
   });
   await page.route('https://codeforces.com/**', (route) =>
-    route.fulfill({ contentType: 'text/html', body: fixtures['problem-multiple'] })
+    route.fulfill(
+      route.request().resourceType() === 'image'
+        ? {
+            contentType: 'image/svg+xml',
+            body: '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40"><rect x="1" y="1" width="45" height="38" rx="4" fill="#586b59"/><rect x="50" y="1" width="109" height="38" rx="4" fill="#799579"/><g fill="white" font-size="14" font-family="sans-serif" text-anchor="middle"><text x="23" y="25">2</text><text x="104" y="25">6</text></g></svg>',
+          }
+        : { contentType: 'text/html', body: fixtures['problem-multiple'] }
+    )
   );
   await page.goto('https://codeforces.com/problemset/problem/4/A');
   await page.addStyleTag({ path: 'dist/styles.css' });

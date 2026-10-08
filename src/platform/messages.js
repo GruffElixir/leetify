@@ -18,6 +18,7 @@ const storageMethods = new Set([
 const types = new Set([
   'STORAGE',
   'RUNNER_CHECK',
+  'RUNNER_PERMISSION',
   'RUNNER_DISCOVER',
   'RUNNER_EXECUTE',
   'RUNNER_CANCEL',
@@ -47,6 +48,16 @@ export function createMessageRouter({ repository, runner, network, extensionApi 
         if (message.type === 'OPEN_OPTIONS') {
           await extensionApi.runtime.openOptionsPage();
           return { ok: true };
+        }
+        if (message.type === 'RUNNER_PERMISSION') {
+          const url = runnerUrl(payload.endpoint);
+          if (!url) throw new LeetifyError('INVALID_ENDPOINT', 'Enter a valid runner URL.');
+          return {
+            ok: true,
+            data: {
+              granted: await extensionApi.permissions.contains({ origins: [`${url.origin}/*`] }),
+            },
+          };
         }
         if (message.type.endsWith('CANCEL_OWNER')) {
           if (message.type.startsWith('RUNNER'))
