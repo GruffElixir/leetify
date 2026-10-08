@@ -82,6 +82,7 @@ export class SubmissionController {
     const request = buildSubmission(prepared.form, { ...prepared, compilerId });
     this.consumed.add(prepared.id);
     this.prepared.delete(prepared.id);
+    const generation = this.generation;
     let receipt;
     try {
       const page = await this.network.postSubmission(request);
@@ -112,7 +113,8 @@ export class SubmissionController {
         : statusUrl(prepared.route),
     };
     await this.update(record);
-    if (receipt.status === 'confirmed' && !this.disposed) this.poll(prepared.route, record);
+    if (receipt.status === 'confirmed' && !this.disposed && generation === this.generation)
+      this.poll(prepared.route, record);
     return record;
   }
   async update(record) {

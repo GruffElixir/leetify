@@ -61,7 +61,6 @@ test('external tab conflict preserves both drafts and offers review', async ({ p
       expectedRevision: 0,
     });
   });
-  await page.locator('[data-status=save]').click();
   await expect(page.locator('[data-status=save]')).toContainText('Conflict');
   expect(
     await page.evaluate(() => __leetifyTest.snapshot().then((s) => s.solutions['cf:4:A'].cpp.code))

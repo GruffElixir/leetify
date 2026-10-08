@@ -6,10 +6,10 @@ A Firefox extension that turns Codeforces problem pages into a focused coding wo
 
 - A bundled CodeMirror 6 editor for C++, Python, Java, and JavaScript, with undo, search, indentation, comments, folding, and bracket matching.
 - Charcoal, light, and Monokai themes. Resizable panes and a separate test drawer, stacked layouts, focus mode, and compact phone views.
-- Per-problem, per-language drafts in Firefox storage. Contest/problemset aliases share a draft; gym problems stay separate. Conflicts preserve both sources.
+- Per-problem, per-language drafts in Firefox storage. Contest/problemset aliases share a draft; gym problems stay separate. Conflicts preserve both sources, including later edits before choosing the stored draft.
 - Every sample pair, with spaces and blank lines preserved. Custom cases persist. Runs capture source, language, endpoint, and cases once; Cancel stops the queue.
 - Compiler/runtime diagnostics separate from stdout. Token comparisons are labeled; cases without expected output report execution rather than a comparison pass.
-- Fresh submission forms, real compiler choices, explicit source review, confirmed receipt IDs, and polling of that exact submission. Uncertain POSTs are never retried automatically.
+- Fresh submission forms, real compiler choices, explicit source review, confirmed receipt IDs, and polling of that exact submission. Public status rows cannot confirm an own-history receipt. Uncertain POSTs are never retried automatically.
 - Templates, recovered drafts, fresh JSON backups, validated imports, and three pre-import recovery snapshots.
 - Local math rendering for fetched statements. Existing statement nodes and rendered formulas survive toggles.
 
@@ -60,6 +60,8 @@ Drafts, templates, cases, preferences, and history stay in local Firefox storage
 The original extension ID is retained. Migration reads v2 structured records, monolithic state, and supported site-local drafts without deleting originals. Unattributed source remains in **Templates & recovery**. Failed saves retain dirty source and expose Retry.
 
 Export before uninstalling or clearing your profile. Backups contain private source. Merge preserves active drafts and recovers conflicting imported code. Replacement requires confirmation, advances revisions to protect open tabs, and saves the previous state. Imported runner consent is reset for review.
+
+Deleted/recreated solutions keep distinct revisions across replacements and restarts. Clean tabs follow imported/deleted drafts and cases; pending source remains recoverable, and conflicting custom inputs are retained. Submission links are derived from Codeforces identities rather than URLs inside a backup.
 
 Firefox 140+ displays the website-content transmission declaration during installation. Older supported versions use the runner disclosure and reviewed submission workflow. See [Mozilla's data-consent documentation](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/).
 

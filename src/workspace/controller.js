@@ -177,13 +177,10 @@ export class WorkspaceController {
     let draft = this.drafts.get(id);
     if (!draft) {
       const saved = this.state.solutions[key]?.[language];
-      const active = this.state.templates[language]?.find(
-        (t) => t.id === this.settings.activeTemplateByLang[language]
-      );
       draft = {
         key,
         language,
-        code: saved?.code ?? active?.code ?? LANGUAGES[language].starter,
+        code: saved?.code ?? this.starter(language),
         revision: saved?.revision || 0,
         dirty: false,
         version: 0,
@@ -192,6 +189,13 @@ export class WorkspaceController {
       this.drafts.set(id, draft);
     }
     return draft;
+  }
+  starter(language) {
+    return (
+      this.state.templates[language]?.find(
+        (template) => template.id === this.settings.activeTemplateByLang[language]
+      )?.code ?? LANGUAGES[language].starter
+    );
   }
   restoreEditor() {
     const draft = this.draft();
@@ -207,7 +211,7 @@ export class WorkspaceController {
       span.textContent = text.replace(/(?:time|memory) limit per test\s*/i, '');
       this.shell.meta.append(span);
     }
-    this.shell.description.replaceChildren(this.current.statement);
+    if (this.active) this.shell.description.replaceChildren(this.current.statement);
     this.tests.setCases([
       ...this.current.samples,
       ...(this.caseWrites.get(problemKey(this.current.route))?.cases ||
@@ -321,19 +325,56 @@ export class WorkspaceController {
   }
   storageChanged(state) {
     if (!state) return;
+    const previous = this.state;
     this.state = state;
     this.settings = normalizeSettings({ ...state.settings, ...this.pendingSettings });
     this.shell.configure(this.settings);
     this.editor.configure(this.settings);
     for (const draft of this.drafts.values()) {
       const saved = state.solutions[draft.key]?.[draft.language];
-      if (!saved || saved.revision === draft.revision || draft.saving) continue;
+      if ((saved?.revision || 0) === draft.revision || draft.saving) continue;
       if (!draft.dirty) {
-        draft.code = saved.code;
-        draft.revision = saved.revision;
+        draft.code = saved?.code ?? this.starter(draft.language);
+        draft.revision = saved?.revision || 0;
+        draft.conflict = null;
         if (draft === this.draft()) this.restoreEditor();
+      } else {
+        draft.conflict = { status: 'conflict', solution: saved || null };
+        if (previous.solutions[draft.key]?.[draft.language]?.revision !== saved?.revision)
+          this.storage
+            .recoverDraft({ key: draft.key, language: draft.language, code: draft.code })
+            .catch((error) => {
+              draft.error = error.message;
+              this.saveStatus();
+            });
       }
     }
+    const key = problemKey(this.current.route);
+    const incoming = state.cases[key] || [];
+    const pending = this.caseWrites.get(key);
+    if (
+      JSON.stringify(previous.cases[key] || []) !== JSON.stringify(incoming) &&
+      (!pending || JSON.stringify(pending.cases) !== JSON.stringify(incoming))
+    ) {
+      let cases = incoming;
+      if (pending) {
+        cases = structuredClone(incoming);
+        for (const local of pending.cases) {
+          const same = cases.find((item) => item.id === local.id);
+          if (same && JSON.stringify(same) === JSON.stringify(local)) continue;
+          if (same) {
+            same.id = `custom-recovered-${Date.now()}-${Math.random()}`;
+            same.name = `${same.name} (other tab)`;
+          }
+          cases.push(structuredClone(local));
+        }
+        this.caseWrites.set(key, { cases });
+        this.message('Custom cases changed in another tab. Your pending cases were retained.');
+      }
+      this.cancelRun({ clear: true });
+      this.tests.setCases([...this.current.samples, ...cases]);
+    }
+    this.saveStatus();
     this.renderSubmissions();
   }
   patchSettings(patch) {
@@ -709,7 +750,7 @@ export class WorkspaceController {
     const content = this.document.createElement('div');
     const text = this.document.createElement('p');
     text.textContent =
-      'Another tab saved different source. Both drafts are preserved in recovery. Choose the source to keep in this editor.';
+      'Stored source changed in another tab. Your edits stay in this tab. Choosing the stored source saves your latest draft in recovery first.';
     const mine = this.document.createElement('pre');
     mine.className = 'lf-source-preview';
     mine.textContent = draft.code;
@@ -733,17 +774,28 @@ export class WorkspaceController {
       if (await this.persist(draft, { preservePrevious: true })) dialog.close();
     });
     other.addEventListener('click', async () => {
-      const state = await this.storage.readSnapshot();
-      const saved = state.solutions[draft.key]?.[draft.language];
-      if (saved) {
-        draft.code = saved.code;
-        draft.revision = saved.revision;
+      other.disabled = true;
+      keep.disabled = true;
+      try {
+        const code = draft.code;
+        await this.storage.recoverDraft({ key: draft.key, language: draft.language, code });
+        const state = await this.storage.readSnapshot();
+        if (draft.code !== code)
+          throw new Error('Source changed. Review your latest draft before continuing.');
+        const saved = state.solutions[draft.key]?.[draft.language];
+        draft.code = saved?.code ?? this.starter(draft.language);
+        draft.revision = saved?.revision || 0;
+        draft.dirty = false;
+        draft.conflict = null;
+        draft.error = null;
+        this.restoreEditor();
+        dialog.close();
+      } catch (error) {
+        text.textContent = `Your draft could not be safely replaced. ${error.message}`;
+      } finally {
+        other.disabled = false;
+        keep.disabled = false;
       }
-      draft.dirty = false;
-      draft.conflict = null;
-      draft.error = null;
-      this.restoreEditor();
-      dialog.close();
     });
   }
   problems() {

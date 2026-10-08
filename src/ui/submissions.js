@@ -1,4 +1,5 @@
 import { button } from './icons.js';
+import { canonicalLegacyKey } from '../domain/problem.js';
 export function createSubmissions({ parent, onRefresh = () => {}, nativeUrl }) {
   const doc = parent.ownerDocument;
   const toolbar = doc.createElement('div');
@@ -32,7 +33,12 @@ export function createSubmissions({ parent, onRefresh = () => {}, nativeUrl }) {
         title.textContent = record.submissionId
           ? `#${record.submissionId}`
           : 'Unconfirmed submission';
-        title.href = record.url || nativeUrl;
+        const identity = canonicalLegacyKey(record.key)?.match(/^(cf|gym):(\d+):/);
+        const submissionId = String(record.submissionId || '');
+        title.href =
+          identity && /^\d+$/.test(submissionId)
+            ? `${new URL(nativeUrl).origin}/${identity[1] === 'gym' ? 'gym' : 'contest'}/${identity[2]}/submission/${submissionId}`
+            : nativeUrl;
         title.target = '_blank';
         title.rel = 'noopener noreferrer';
         const verdict = doc.createElement('strong');

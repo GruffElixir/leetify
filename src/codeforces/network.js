@@ -17,7 +17,7 @@ export function codeforcesUrl(value, { submit = false } = {}) {
         ? !isSubmit
         : !parseProblemUrl(url.href) &&
           !isSubmit &&
-          !/^\/(?:problemset\/status(?:\/\d+\/problem\/[a-z]\d*)?|(?:contest|gym)\/\d+\/(?:my|status|submission\/\d+))\/?$/i.test(
+          !/^\/(?:problemset\/status(?:\/\d+\/problem\/[a-z0-9]+)?|(?:contest|gym)\/\d+\/(?:my|status|submission\/\d+))\/?$/i.test(
             url.pathname
           )
     )

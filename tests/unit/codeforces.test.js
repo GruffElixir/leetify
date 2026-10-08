@@ -87,14 +87,14 @@ test('status parsing matches problem links instead of incidental row text', () =
 test('a receipt needs unambiguous new IDs and never accepts an old or error page', () => {
   const doc = page('status');
   assert.equal(
-    parseSubmissionReceipt(doc, 'https://codeforces.com/problemset/status', {
+    parseSubmissionReceipt(doc, 'https://codeforces.com/problemset/status?my=on', {
       route,
       baselineIds: ['100001'],
     }).status,
     'unconfirmed'
   );
   assert.equal(
-    parseSubmissionReceipt(doc, 'https://codeforces.com/problemset/status', {
+    parseSubmissionReceipt(doc, 'https://codeforces.com/problemset/status?my=on', {
       route,
       baselineIds: [],
     }).submissionId,
@@ -105,7 +105,7 @@ test('a receipt needs unambiguous new IDs and never accepts an old or error page
   row.querySelector('a').href = '/contest/4/submission/100003';
   doc.querySelector('table').append(row);
   assert.equal(
-    parseSubmissionReceipt(doc, 'https://codeforces.com/problemset/status', {
+    parseSubmissionReceipt(doc, 'https://codeforces.com/problemset/status?my=on', {
       route,
       baselineIds: [],
     }).status,
@@ -117,5 +117,73 @@ test('a receipt needs unambiguous new IDs and never accepts an old or error page
       baselineIds: [],
     }).status,
     'unconfirmed'
+  );
+});
+
+test('direct receipts require matching problem/ID markup and reject known IDs', () => {
+  const url = 'https://codeforces.com/contest/4/submission/100001';
+  for (const html of ['', '<title>Service unavailable</title><p>Try later</p>'])
+    assert.equal(
+      parseSubmissionReceipt(new JSDOM(html).window.document, url, { route, baselineIds: [] })
+        .status,
+      'unconfirmed'
+    );
+  assert.equal(
+    parseSubmissionReceipt(page('status'), url, { route, baselineIds: [] }).submissionId,
+    '100001'
+  );
+  assert.equal(
+    parseSubmissionReceipt(page('status'), url, { route, baselineIds: ['100001'] }).status,
+    'unconfirmed'
+  );
+  assert.equal(
+    parseSubmissionReceipt(page('status'), 'https://codeforces.com/contest/4/submission/100002', {
+      route,
+      baselineIds: [],
+    }).status,
+    'unconfirmed'
+  );
+});
+
+test('public status rows cannot be attributed to an own-history submission baseline', () => {
+  const doc = page('status');
+  const account = doc.createElement('a');
+  account.href = '/profile/another-user';
+  account.textContent = 'another-user';
+  doc.querySelector('tr:last-child').append(account);
+  assert.equal(
+    parseSubmissionReceipt(doc, 'https://codeforces.com/problemset/status', {
+      route,
+      baselineIds: [],
+    }).status,
+    'unconfirmed'
+  );
+  assert.equal(
+    parseSubmissionReceipt(doc, 'https://codeforces.com/contest/4/status', {
+      route,
+      baselineIds: [],
+    }).status,
+    'unconfirmed'
+  );
+  account.remove();
+  assert.equal(
+    parseSubmissionReceipt(doc, 'https://codeforces.com/problemset/status?my=on', {
+      route,
+      baselineIds: [],
+    }).submissionId,
+    '100001'
+  );
+});
+test('native sidebar links supply same-contest problems without unrelated routes', () => {
+  const doc = page('problem-multiple');
+  doc.querySelector('.problems').remove();
+  const sidebar = doc.createElement('aside');
+  sidebar.id = 'sidebar';
+  sidebar.innerHTML =
+    '<table class="rtable"><tr><td><a href="/contest/4/problem/A">A. First</a></td></tr><tr><td><a href="/contest/4/problem/AA">AA. Next</a></td></tr><tr><td><a href="/gym/4/problem/B">Other gym</a></td></tr><tr><td><a href="/contest/99/problem/C">Other contest</a></td></tr></table>';
+  doc.body.append(sidebar);
+  assert.deepEqual(
+    parseProblemDocument(doc, route.url).problems.map((problem) => problem.route.index),
+    ['A', 'AA']
   );
 });

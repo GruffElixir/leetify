@@ -35,7 +35,12 @@ export async function extension(page, config = {}) {
   await page.goto('https://codeforces.com/problemset/problem/4/A');
   await page.addStyleTag({ path: 'dist/styles.css' });
   await page.addScriptTag({ path: 'dist/content.js' });
-  await expect(page.locator('#leetify-workspace')).toBeVisible();
+  if (config.settings?.autoActivate === false)
+    await page.evaluate(async () => {
+      await __leetifyTest.snapshot();
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+  else await expect(page.locator('#leetify-workspace')).toBeVisible();
 }
 export async function chooseProblem(page, index) {
   await page.getByRole('button', { name: 'Problems', exact: true }).click();

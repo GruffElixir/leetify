@@ -7,6 +7,7 @@ const storageMethods = new Set([
   'readSnapshot',
   'patchSettings',
   'saveSolution',
+  'recoverDraft',
   'saveCases',
   'saveTemplate',
   'deleteTemplate',

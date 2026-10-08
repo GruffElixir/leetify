@@ -7,6 +7,7 @@ import {
   validateIdentity,
   validateCases,
   recover,
+  nextSolutionRevision,
 } from './schema.js';
 import { migrateRecords, mergeDraft, importLegacySite } from './migration.js';
 import { normalizeSettings } from '../domain/settings.js';
@@ -100,10 +101,18 @@ export class StorageRepository {
           updatedAt: current.updatedAt,
           reason: 'Draft replaced after conflict review',
         });
-      const solution = { code, updatedAt: this.now(), revision: expectedRevision + 1 };
+      const solution = { code, updatedAt: this.now(), revision: nextSolutionRevision(state) };
       languages[language] = solution;
       return { status: 'saved', solution };
     });
+  }
+  recoverDraft({ key, language, code, reason = 'Draft saved before conflict resolution' }) {
+    validateIdentity(key, language);
+    if (typeof code !== 'string')
+      throw new LeetifyError('INVALID_DATA', 'Invalid recovered source.');
+    return this.mutate((state) =>
+      recover(state, { key, language, code, reason, updatedAt: this.now() })
+    );
   }
   saveCases({ key, cases }) {
     validateIdentity(key, 'cpp');
@@ -174,10 +183,10 @@ export class StorageRepository {
       if (mode === 'replace') {
         const previous = { ...clone(state), preImportSnapshots: [] };
         const snapshots = state.preImportSnapshots;
-        for (const [key, languages] of Object.entries(imported.solutions))
-          for (const [language, entry] of Object.entries(languages))
-            entry.revision =
-              Math.max(entry.revision, state.solutions[key]?.[language]?.revision || 0) + 1;
+        imported.solutionClock = state.solutionClock;
+        for (const languages of Object.values(imported.solutions))
+          for (const entry of Object.values(languages))
+            entry.revision = nextSolutionRevision(imported);
         imported.settings.runnerConsentOrigin = '';
         Object.assign(state, clone(imported));
         state.preImportSnapshots = [

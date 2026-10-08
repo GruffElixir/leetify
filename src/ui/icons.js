@@ -23,6 +23,7 @@ const paths = {
 };
 export function icon(name, doc = document) {
   const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.classList.add('lf-icon');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('fill', 'none');
   svg.setAttribute('stroke', 'currentColor');

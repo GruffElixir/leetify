@@ -27,10 +27,16 @@ export function parseProblemDocument(doc, url) {
   const problems = [];
   const seen = new Set();
   for (const link of doc.querySelectorAll(
-    'table.problems a[href],.problems a[href],.problems-list a[href]'
+    'table.problems a[href],.problems a[href],.problems-list a[href],#sidebar a[href],.sidebar a[href]'
   )) {
     const next = parseProblemUrl(new URL(link.getAttribute('href'), url).href);
-    if (!next || seen.has(problemKey(next))) continue;
+    if (
+      !next ||
+      next.id !== route.id ||
+      (next.kind === 'gym') !== (route.kind === 'gym') ||
+      seen.has(problemKey(next))
+    )
+      continue;
     seen.add(problemKey(next));
     problems.push({
       route: next,

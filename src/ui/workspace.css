@@ -82,7 +82,7 @@
   color: var(--lf-accent);
   text-decoration: none;
 }
-:is(#leetify-workspace, .leetify-dialog-layer) svg {
+:is(#leetify-workspace, .leetify-dialog-layer) .lf-icon {
   width: 18px;
   height: 18px;
   flex: none;
@@ -297,8 +297,7 @@ body.leetify-open {
   font-size: 16px;
   margin: 24px 0 10px;
 }
-#leetify-workspace .lf-description img,
-#leetify-workspace .lf-description svg {
+#leetify-workspace .lf-description img {
   max-width: 100%;
   height: auto;
 }

@@ -48,17 +48,35 @@ export function parseSubmissionReceipt(doc, url, { route, baselineIds }) {
   const direct =
     receipt.origin === route.origin &&
     receipt.pathname.match(/^\/(contest|gym)\/(\d+)\/submission\/(\d+)\/?$/);
-  if (direct && direct[2] === route.id && (direct[1] === 'gym') === (route.kind === 'gym'))
-    return { status: 'confirmed', submissionId: direct[3] };
-  if (!Array.isArray(baselineIds))
+  const records = parseStatusRecords(doc, route);
+  if (direct && direct[2] === route.id && (direct[1] === 'gym') === (route.kind === 'gym')) {
+    if (
+      records.some((record) => record.submissionId === direct[3]) &&
+      !baselineIds?.includes(direct[3])
+    )
+      return { status: 'confirmed', submissionId: direct[3] };
+    return {
+      status: 'unconfirmed',
+      message:
+        'The returned submission page did not establish a new receipt for this problem. Check native My submissions.',
+    };
+  }
+  const ownContest = receipt.pathname.match(/^\/(contest|gym)\/(\d+)\/my\/?$/);
+  const ownHistory =
+    receipt.origin === route.origin &&
+    ((ownContest &&
+      ownContest[2] === route.id &&
+      (ownContest[1] === 'gym') === (route.kind === 'gym')) ||
+      (route.kind !== 'gym' &&
+        /^\/problemset\/status(?:\/\d+\/problem\/[a-z0-9]+)?\/?$/i.test(receipt.pathname) &&
+        receipt.searchParams.get('my') === 'on'));
+  if (!ownHistory || !Array.isArray(baselineIds))
     return {
       status: 'unconfirmed',
       message:
         'Codeforces did not provide a submission receipt. Check native My submissions before retrying.',
     };
-  const fresh = parseStatusRecords(doc, route).filter(
-    (record) => !baselineIds.includes(record.submissionId)
-  );
+  const fresh = records.filter((record) => !baselineIds.includes(record.submissionId));
   return fresh.length === 1
     ? { status: 'confirmed', submissionId: fresh[0].submissionId }
     : {

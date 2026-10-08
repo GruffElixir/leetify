@@ -9,6 +9,7 @@ export const id = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(
 export function emptyState() {
   return {
     version: 3,
+    solutionClock: 0,
     settings: normalizeSettings(),
     solutions: {},
     templates: {},
@@ -61,6 +62,10 @@ export function validateState(value, allowSnapshots = true) {
   )
     bad();
   const next = emptyState();
+  if (value.solutionClock !== undefined) {
+    if (!Number.isSafeInteger(value.solutionClock) || value.solutionClock < 0) bad();
+    next.solutionClock = value.solutionClock;
+  }
   next.settings = normalizeSettings(value.settings);
   for (const [key, languages] of Object.entries(value.solutions)) {
     if (!object(languages)) bad();
@@ -75,6 +80,7 @@ export function validateState(value, allowSnapshots = true) {
       )
         bad();
       (next.solutions[key] ||= {})[lang] = clone(entry);
+      next.solutionClock = Math.max(next.solutionClock, entry.revision);
     }
   }
   for (const [lang, list] of Object.entries(value.templates)) {
@@ -120,12 +126,24 @@ export function validateState(value, allowSnapshots = true) {
     for (const snapshot of value.preImportSnapshots) {
       if (!object(snapshot) || typeof snapshot.id !== 'string') bad();
       next.preImportSnapshots.push({ ...snapshot, state: validateState(snapshot.state, false) });
+      next.solutionClock = Math.max(
+        next.solutionClock,
+        next.preImportSnapshots.at(-1).state.solutionClock
+      );
     }
   if (object(value.legacySiteImports))
     for (const [key, code] of Object.entries(value.legacySiteImports))
       if (key.startsWith('leetify_') && typeof code === 'string')
         next.legacySiteImports[key] = code;
   return next;
+}
+export function nextSolutionRevision(state) {
+  if (state.solutionClock >= Number.MAX_SAFE_INTEGER)
+    throw new LeetifyError(
+      'INVALID_DATA',
+      'Solution revision limit reached. Export your data before recovery.'
+    );
+  return ++state.solutionClock;
 }
 export function recover(
   state,

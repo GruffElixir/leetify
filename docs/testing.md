@@ -22,6 +22,8 @@ CI runs the same checks on Node 24 with Chromium and Firefox. Browser tests use 
 - Options tests load the generated page and check patches, exports, imports, recovery, permission denial, and empty runtime lists.
 - Manifest/package checks ensure referenced files/fonts exist, the original ID/minimum remain, and HTML executes only packaged scripts.
 
+Independent review regressions cover revisions after deletion/restoration/restart, later conflict edits and failed recovery, direct receipt markup, public status attribution, disabled activation, synchronized draft/case deletions, pending case collisions, native SVG and KaTeX radical/arrow dimensions, and late POSTs after polling cancellation. Additional boundary tests cover native sidebar links, complete alphanumeric indices and their migration, and history links derived from validated identities.
+
 Fixtures contain short paraphrased problem statements and representative markup. Passing fixture tests does not certify current live Codeforces markup or an account's authentication/challenge behavior. Chromium supplements Firefox; this package is not a Chromium extension.
 
 ## Mozilla linter notices
@@ -36,11 +38,11 @@ These notices remain visible. This is not general warning suppression. Review th
 ## Manual Firefox check
 
 1. Build, load `dist/manifest.json` through `about:debugging`, and allow Codeforces access.
-2. Open contest/problemset and gym problems. Toggle three times; check statement formulas, samples, images, and the returned native page.
+2. Open contest/problemset and gym problems. Toggle three times; check statement formulas (including radicals/arrows and native SVG), samples, images, sidebar navigation, and the returned native page. Disable automatic activation and check the native statement before toggling manually.
 3. Write language drafts, reload, and reopen. Open the same problem in two tabs; verify both conflicting sources remain recoverable.
 4. Grant/check a local Piston endpoint, install runtimes, and run samples/custom cases. Test compilation failure, wrong output, and cancellation.
 5. Navigate, Back, and Forward; check the URL, draft, formulas, and native exit.
-6. Export, merge, replace, and restore a backup. Check recovery before deleting a browser profile.
+6. Export, merge, replace, and restore a backup with another clean/dirty tab open. Check deleted solutions/cases, recreated drafts, later conflict edits, and recovery before deleting a browser profile.
 7. Sign in and open submission review. Check real compiler IDs and captured source. Make a real submission only if you intend to submit; confirm and poll its exact ID.
 8. Test login/challenge pages and denied runner access. Check fallback and that uncertain POSTs are not repeated.
 

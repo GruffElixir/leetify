@@ -22,6 +22,18 @@ test('only complete HTTP Codeforces problem routes are accepted', () => {
   ])
     assert.equal(parseProblemUrl(url), null);
 });
+test('alphanumeric native problem indices retain complete canonical identities', () => {
+  for (const index of ['A10', 'AA', '1']) {
+    assert.equal(
+      problemKey(parseProblemUrl(`https://codeforces.com/gym/55/problem/${index}`)),
+      `gym:55:${index}`
+    );
+    assert.equal(
+      problemKey(parseProblemUrl(`https://codeforces.com/problemset/problem/4/${index}`)),
+      `cf:4:${index}`
+    );
+  }
+});
 test('sample comparison distinguishes exact, token and wrong results', () => {
   assert.equal(compareOutputs('1 2\r\n', '1 2\n').mode, 'exact');
   assert.equal(compareOutputs('1\n2', '1 2').mode, 'tokens');

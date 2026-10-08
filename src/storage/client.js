@@ -33,6 +33,9 @@ export class StorageClient {
   saveSolution(args) {
     return this.request('saveSolution', args);
   }
+  recoverDraft(args) {
+    return this.request('recoverDraft', args);
+  }
   saveCases(args) {
     return this.request('saveCases', args);
   }

@@ -11,8 +11,8 @@ export function parseProblemUrl(input) {
     )
       return null;
     const match =
-      url.pathname.match(/^\/(contest|gym)\/(\d+)\/problem\/([a-z]\d?)\/?$/i) ||
-      url.pathname.match(/^\/(problemset)\/problem\/(\d+)\/([a-z]\d?)\/?$/i);
+      url.pathname.match(/^\/(contest|gym)\/(\d+)\/problem\/([a-z0-9]+)\/?$/i) ||
+      url.pathname.match(/^\/(problemset)\/problem\/(\d+)\/([a-z0-9]+)\/?$/i);
     if (!match) return null;
     return {
       kind: match[1].toLowerCase(),
@@ -43,8 +43,8 @@ export function statusUrl(route) {
     : `${route.origin}/${route.kind}/${route.id}/my`;
 }
 export function canonicalLegacyKey(key) {
-  const match = String(key).match(/^(?:contest|problemset|cf):(\d+):([a-z]\d?)$/i);
+  const match = String(key).match(/^(?:contest|problemset|cf):(\d+):([a-z0-9]+)$/i);
   if (match) return `cf:${match[1]}:${match[2].toUpperCase()}`;
-  const gym = String(key).match(/^gym:(\d+):([a-z]\d?)$/i);
+  const gym = String(key).match(/^gym:(\d+):([a-z0-9]+)$/i);
   return gym ? `gym:${gym[1]}:${gym[2].toUpperCase()}` : null;
 }

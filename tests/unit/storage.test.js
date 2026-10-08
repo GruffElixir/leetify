@@ -216,3 +216,55 @@ test('merging backups retains distinct custom cases with colliding IDs', async (
   );
   assert.notEqual(cases[0].id, cases[1].id);
 });
+
+test('deleted and restored solutions never reuse revisions, including after restart', async () => {
+  const h = harness();
+  await h.repo.initialize();
+  const original = await save(h.repo, 'original');
+  const empty = harness();
+  await empty.repo.initialize();
+  await h.repo.importBackup({ backup: await empty.repo.exportBackup(), mode: 'replace' });
+  const restarted = new StorageRepository({
+    storage: {
+      get: async () => structuredClone(h.data),
+      set: async (change) => Object.assign(h.data, structuredClone(change)),
+    },
+  });
+  await restarted.initialize();
+  const fresh = await save(restarted, 'new source');
+  assert.ok(fresh.solution.revision > original.solution.revision);
+  assert.equal((await save(restarted, 'stale tab', original.solution.revision)).status, 'conflict');
+  let state = await restarted.readSnapshot();
+  assert.equal(state.solutions['cf:4:A'].cpp.code, 'new source');
+  assert.ok(state.recoveredDrafts.some((draft) => draft.code === 'stale tab'));
+  await restarted.restoreSnapshot(state.preImportSnapshots.at(-1).id);
+  state = await restarted.readSnapshot();
+  assert.ok(state.solutions['cf:4:A'].cpp.revision > fresh.solution.revision);
+});
+
+test('explicit recovery saves the latest conflicting source atomically', async () => {
+  const h = harness();
+  await h.repo.initialize();
+  h.fail = true;
+  await assert.rejects(
+    h.repo.recoverDraft({ key: 'cf:4:A', language: 'cpp', code: 'latest conflict' }),
+    /disk full/
+  );
+  assert.equal((await h.repo.readSnapshot()).recoveredDrafts.length, 0);
+  h.fail = false;
+  await h.repo.recoverDraft({ key: 'cf:4:A', language: 'cpp', code: 'latest conflict' });
+  assert.equal((await h.repo.readSnapshot()).recoveredDrafts[0].code, 'latest conflict');
+});
+test('migration retains multi-character and numeric legacy indices', async () => {
+  const h = harness({
+    'leetify_solution_v2:gym%3A55%3AA10:cpp': { code: 'long index', updatedAt: 1 },
+  });
+  await h.repo.initialize({
+    leetify_code_python_4_AA: 'site index',
+    leetify_code_java_4_1: 'numeric index',
+  });
+  const state = await h.repo.readSnapshot();
+  assert.equal(state.solutions['gym:55:A10'].cpp.code, 'long index');
+  assert.equal(state.solutions['cf:4:AA'].python.code, 'site index');
+  assert.equal(state.solutions['cf:4:1'].java.code, 'numeric index');
+});

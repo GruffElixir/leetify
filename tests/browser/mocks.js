@@ -79,7 +79,7 @@ const mockedFetch = async (url, init = {}) => {
   }
   if (init.method === 'POST') {
     test.posts++;
-    return response(fixtures.status, 'https://codeforces.com/problemset/status');
+    return response(fixtures.status, 'https://codeforces.com/problemset/status?my=on');
   }
   if (test.failNavigation && /\/problem\/B|\/problem\/4\/B/.test(url))
     return response(fixtures.challenge, url);
@@ -137,5 +137,5 @@ test.toggle = () =>
   Promise.all(contentListeners.map((listener) => listener({ type: 'TOGGLE_WORKSPACE' })));
 test.resolveExecution = (index, result) => test.executionResolvers[index]?.(result);
 test.export = () => repository.exportBackup();
-test.import = (backup) => repository.importBackup(backup);
+test.import = (backup, mode = 'merge') => repository.importBackup({ backup, mode });
 if (location.hostname === 'codeforces.com') delete window.browser.permissions;

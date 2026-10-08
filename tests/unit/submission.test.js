@@ -36,7 +36,7 @@ function harness({ form = 'submit', receipt = 'status', failure = false } = {}) 
       posts.push(request);
       polling = true;
       if (failure) throw new Error('connection lost');
-      return { html: html(receipt), url: 'https://codeforces.com/problemset/status' };
+      return { html: html(receipt), url: 'https://codeforces.com/problemset/status?my=on' };
     },
   };
   const repository = {
@@ -64,6 +64,23 @@ test('prepare rejects login, challenge and unavailable compilers before POST', a
   const prepared = await h.controller.prepare({ route, language: 'cpp', code: 'captured' });
   await assert.rejects(() => h.controller.submit({ ...prepared, compilerId: 'fake' }));
   assert.equal(h.posts.length, 0);
+});
+
+test('a late confirmed POST retains its receipt without restarting cancelled polling', async () => {
+  const h = harness();
+  const review = await h.controller.prepare({ route, language: 'cpp', code: 'captured' });
+  let resolve;
+  h.network.postSubmission = () =>
+    new Promise((done) => {
+      resolve = done;
+    });
+  const submitting = h.controller.submit(review);
+  h.controller.cancelPolling();
+  resolve({ html: html('status'), url: 'https://codeforces.com/problemset/status?my=on' });
+  const result = await submitting;
+  assert.equal(result.status, 'confirmed');
+  assert.equal(h.records.get('100001').submissionId, '100001');
+  assert.equal(h.scheduled.size, 0);
 });
 test('submission captures reviewed compiler and source and stores one exact receipt', async () => {
   const h = harness();

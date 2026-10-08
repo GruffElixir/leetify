@@ -1,4 +1,4 @@
-import { emptyState, object, recover, id } from './schema.js';
+import { emptyState, object, recover, id, nextSolutionRevision } from './schema.js';
 import { canonicalLegacyKey } from '../domain/problem.js';
 import { isLanguage } from '../domain/languages.js';
 import { normalizeSettings } from '../domain/settings.js';
@@ -21,11 +21,10 @@ export function mergeDraft(state, key, language, entry, preferLatest = true) {
   const languages = (state.solutions[canonical] ||= {});
   const current = languages[language];
   if (current?.code === code) return;
-  const incoming = { code, updatedAt, revision: current ? current.revision + 1 : 1 };
   if (!current || (preferLatest && updatedAt > current.updatedAt)) {
     if (current)
       recover(state, { key: canonical, language, ...current, reason: 'Different legacy draft' });
-    languages[language] = incoming;
+    languages[language] = { code, updatedAt, revision: nextSolutionRevision(state) };
   } else
     recover(state, {
       key: canonical,
@@ -44,7 +43,7 @@ export function importLegacySite(state, site, now, preferLatest = false) {
     )
       continue;
     state.legacySiteImports[key] = value;
-    const code = key.match(/^leetify_code_(cpp|python|java|javascript)(?:_(\d+)_([a-z]\d?))?$/i);
+    const code = key.match(/^leetify_code_(cpp|python|java|javascript)(?:_(\d+)_([a-z0-9]+))?$/i);
     if (code)
       mergeDraft(
         state,
