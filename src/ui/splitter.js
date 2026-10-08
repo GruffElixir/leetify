@@ -1,0 +1,8 @@
+export function bindSplitter({element,axis,getValue,onChange,min=20,max=75,invert=false}) {
+  const dimension=()=>typeof axis==='function'?axis():axis;let pointer=null;const change=value=>onChange(Math.max(min,Math.min(max,value)));const key=event=>{let value=getValue();const increase=['ArrowRight','ArrowDown'].includes(event.key);const decrease=['ArrowLeft','ArrowUp'].includes(event.key);if(increase||decrease)value+=(increase?2:-2)*(invert?-1:1);else if(event.key==='Home')value=min;else if(event.key==='End')value=max;else return;event.preventDefault();change(value);};
+  const down=event=>{if(event.button!==0)return;pointer=event.pointerId;element.setPointerCapture(pointer);event.preventDefault();element.classList.add('lf-dragging');};
+  const move=event=>{if(pointer!==event.pointerId)return;const box=element.parentElement.getBoundingClientRect();const horizontal=dimension()==='x';const fraction=(horizontal?(event.clientX-box.left)/box.width:(event.clientY-box.top)/box.height)*100;change(invert?100-fraction:fraction);};
+  const up=()=>{pointer=null;element.classList.remove('lf-dragging');};
+  element.setAttribute('aria-valuemin',min);element.setAttribute('aria-valuemax',max);element.addEventListener('keydown',key);element.addEventListener('pointerdown',down);element.addEventListener('pointermove',move);element.addEventListener('pointerup',up);element.addEventListener('lostpointercapture',up);
+  return ()=>{for(const [name,listener] of [['keydown',key],['pointerdown',down],['pointermove',move],['pointerup',up],['lostpointercapture',up]])element.removeEventListener(name,listener);};
+}

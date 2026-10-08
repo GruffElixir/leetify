@@ -1,0 +1,15 @@
+import {createShell} from '../../src/ui/shell.js';
+import {createEditor} from '../../src/ui/editor.js';
+import {openDialog} from '../../src/ui/dialog.js';
+import {bindSplitter} from '../../src/ui/splitter.js';
+import {createTestPanel} from '../../src/ui/test-panel.js';
+import {openTemplates} from '../../src/ui/templates.js';
+import {DEFAULT_SETTINGS} from '../../src/domain/settings.js';
+const actions=[]; const changes=[]; const settings=structuredClone(DEFAULT_SETTINGS);
+const shell=createShell({document,settings,onAction:action=>{actions.push(action);if(action.startsWith('mobile-'))shell.setMobileView(action.slice(7));if(['description','submissions'].includes(action))shell.setActiveView(action);}});document.body.append(shell.root);
+shell.title.textContent='A. Watermelon';shell.description.innerHTML='<div class="problem-statement"><div class="header"><div class="title">A. Watermelon</div><div class="time-limit">1 second</div><div class="memory-limit">64 megabytes</div></div><p>Split a watermelon into two parts of positive even weight.</p><div class="input-specification"><div class="section-title">Input</div><p>An integer w.</p></div><div class="output-specification"><div class="section-title">Output</div><p>Print YES or NO.</p></div></div>';
+const editor=createEditor({parent:shell.editor,language:'cpp',code:'int main() {\n    return 0;\n}\n',settings,onChange:code=>changes.push(code),onCursor:cursor=>shell.setStatus('cursor',`Ln ${cursor.line}, Col ${cursor.column}`)});
+const cases=[{id:'1',name:'Sample 1',input:'8\n',expected:'YES\n',hasExpected:true,custom:false},{id:'2',name:'Sample 2',input:'3\n',expected:'NO\n',hasExpected:true,custom:false}];
+const panel=createTestPanel({parent:shell.tests,onChange:cases=>actions.push(cases),onRun:id=>actions.push(id),onCancel:()=>actions.push('cancel')});panel.setCases(cases);
+bindSplitter({element:shell.paneSplitter,axis:'x',getValue:()=>settings.paneWidth,onChange:value=>{settings.paneWidth=value;shell.configure(settings);}});
+window.testApp={shell,editor,panel,changes,actions,settings,openDialog,openTemplates};
