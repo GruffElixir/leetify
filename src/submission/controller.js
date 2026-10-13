@@ -61,9 +61,10 @@ export class SubmissionController {
       code,
       form,
       compilerOptions,
-      compilerId: compilerOptions.some((o) => o.id === compilerId)
-        ? compilerId
-        : compilerOptions[0].id,
+      // Stored preference, then the account's compiler preselected by Codeforces, then the first match.
+      compilerId: [compilerId, form.fields.find(([name]) => name === 'programTypeId')?.[1]]
+        .filter((id) => compilerOptions.some((o) => o.id === id))
+        .concat(compilerOptions[0].id)[0],
       baselineIds,
     };
     this.prepared.set(prepared.id, structuredClone(prepared));

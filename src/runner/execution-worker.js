@@ -62,7 +62,9 @@ globalThis.onmessage = async ({ data: { id, module, stdin } }) => {
       status: outputLimited ? 'OL' : 'RE',
       message: outputLimited
         ? 'Program output exceeded 256 KiB.'
-        : `WebAssembly runtime error: ${error.message}`,
+        : /call stack size exceeded|too much recursion/i.test(error.message)
+          ? 'Recursion is too deep for the browser WebAssembly stack (a few thousand calls). Codeforces allows much deeper recursion; test deep cases with an iterative version or the Piston runner.'
+          : `WebAssembly runtime error: ${error.message}`,
     });
   }
 };

@@ -133,3 +133,20 @@ test('HTML 200 challenge cannot be called submitted and polling disposal suppres
   await poll;
   assert.equal(h.updates.length, count);
 });
+
+test('review defaults to the stored compiler, then the form preselection, then the first match', async () => {
+  const preselected = html('submit').replace('<option value="89">', '<option value="89" selected>');
+  const controller = new SubmissionController({
+    network: {
+      getPage: async (url) => ({ html: url.includes('/submit') ? preselected : empty, url }),
+    },
+    repository: {},
+    parseHtml,
+  });
+  const prepare = (language, compilerId) =>
+    controller.prepare({ route, language, code: 'x', compilerId }).then((p) => p.compilerId);
+  assert.equal(await prepare('cpp'), '89');
+  assert.equal(await prepare('cpp', '54'), '54');
+  assert.equal(await prepare('python'), '31');
+  assert.equal(await prepare('python', '70'), '70');
+});

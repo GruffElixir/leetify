@@ -178,7 +178,8 @@
               compiler installation is needed, and local runs never send your code anywhere.
               Supports standard C++20 and bits/stdc++.h. GNU PBDS, threads, native OS APIs and C++
               exceptions aren't supported. Tests have a 2-second execution limit, 256 MiB memory and
-              256 KiB output. Codeforces judging uses its own compiler and limits.
+              256 KiB output. The browser's WebAssembly stack allows only a few thousand nested
+              calls, far fewer than Codeforces. Codeforces judging uses its own compiler and limits.
             </p>
             <h3>Piston service (optional for C++)</h3>
             <label class="lf-endpoint-field"

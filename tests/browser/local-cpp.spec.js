@@ -226,3 +226,28 @@ test('a real infinite loop times out and a subsequent run still works', async ({
   await page.getByRole('button', { name: 'Run all', exact: true }).click();
   await expect(page.locator('.lf-test-summary')).toContainText('2/2', { timeout: 60000 });
 });
+test('deep recursion reports the browser stack limit instead of an engine message', async ({
+  page,
+}) => {
+  await toolchain(page);
+  const results = await page.evaluate(async () => {
+    const compiled = await runWorker('compiler', {
+      code: `
+      #include <bits/stdc++.h>
+      std::vector<int> next;
+      std::vector<int> seen;
+      int depth(int v) { if (next[v] < 0) return seen[v] = 1; int d = depth(next[v]); return seen[v] = d + 1; }
+      int main() { int n; std::cin >> n; next.resize(n); seen.resize(n);
+        for (int i = 0; i < n; ++i) next[i] = i + 1 < n ? i + 1 : -1;
+        std::cout << depth(0); }`,
+    });
+    if (!compiled.module) return compiled;
+    return {
+      shallow: await runWorker('execution', { module: compiled.module, stdin: '1000' }),
+      deep: await runWorker('execution', { module: compiled.module, stdin: '1000000' }),
+    };
+  });
+  expect(results.shallow?.run, JSON.stringify(results)).toMatchObject({ code: 0, stdout: '1000' });
+  expect(results.deep?.run.status).toBe('RE');
+  expect(results.deep.run.message).toMatch(/recursion is too deep/i);
+});

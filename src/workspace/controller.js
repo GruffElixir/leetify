@@ -20,6 +20,7 @@ import { openTemplates } from '../ui/templates.js';
 import { openDialog, confirmDialog } from '../ui/dialog.js';
 import { button } from '../ui/icons.js';
 import { bindSplitter } from '../ui/splitter.js';
+const EXIT_KEY = 'leetify:exited-problem';
 
 export class WorkspaceController {
   constructor({ window, document, storage, network, runner, submission }) {
@@ -109,6 +110,13 @@ export class WorkspaceController {
     );
     this.popstate = () => {
       if (this.active) this.navigate(this.window.location.href, { historyMode: 'pop' });
+      else {
+        // Entries pushed by the workspace don't match the restored native page; load them natively.
+        const route = parseProblemUrl(this.window.location.href);
+        if (route && problemKey(route) === this.nativeKey) return;
+        this.leaveNative(route);
+        this.window.location.reload();
+      }
     };
     this.window.addEventListener('popstate', this.popstate);
     this.beforeUnload = (event) => {
@@ -130,7 +138,22 @@ export class WorkspaceController {
     this.shell.root.addEventListener('keydown', this.shortcut);
     this.initialized = true;
     this.renderProblem();
-    if (this.settings.autoActivate) await this.activate();
+    let exited = null;
+    try {
+      exited = this.window.sessionStorage.getItem(EXIT_KEY);
+      this.window.sessionStorage.removeItem(EXIT_KEY);
+    } catch {
+      /* Storage can be disabled by the site/browser. */
+    }
+    if (this.settings.autoActivate && exited !== this.nativeKey) await this.activate();
+  }
+  leaveNative(route) {
+    // One-shot marker: the page loaded after Exit stays native despite auto-activation.
+    try {
+      if (route) this.window.sessionStorage.setItem(EXIT_KEY, problemKey(route));
+    } catch {
+      /* Without storage the next page simply follows the auto-activation setting. */
+    }
   }
   stacked() {
     return (
@@ -169,6 +192,7 @@ export class WorkspaceController {
     this.shell.root.remove();
     this.document.body.classList.remove('leetify-open');
     if (this.currentUrl !== this.nativeUrl) {
+      this.leaveNative(this.current.route);
       this.window.location.assign(problemUrl(this.current.route));
       return;
     }
@@ -247,7 +271,9 @@ export class WorkspaceController {
     this.window.clearTimeout(this.autoTimer);
     if (this.settings.autoRunSamples)
       this.autoTimer = this.window.setTimeout(() => {
-        if (this.active && !this.batch) this.run();
+        if (!this.active) return;
+        if (this.batch) this.autoRunPending = true;
+        else this.run();
       }, 1200);
   }
   saveStatus() {
@@ -527,6 +553,7 @@ export class WorkspaceController {
   }
   async run(ids) {
     if (!this.active) return;
+    this.autoRunPending = false;
     this.cancelRun({ clear: true });
     const generation = this.runGeneration;
     const context = {
@@ -593,6 +620,14 @@ export class WorkspaceController {
     this.shell.setRunning(false);
     this.tests.setRunning(false);
     this.batch = null;
+    // An edit made during an auto-run gets its own run once the outdated one finishes.
+    if (
+      this.autoRunPending &&
+      this.settings.autoRunSamples &&
+      this.active &&
+      this.editor.getCode() !== context.code
+    )
+      this.run();
   }
   runnerConsent(endpoint) {
     const origin = runnerUrl(endpoint)?.origin;

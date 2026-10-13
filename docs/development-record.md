@@ -86,3 +86,19 @@ A fourth fresh supervisor confirmed three findings before the session paused; al
 - P2: persisted focus mode hid the statement on compact layouts, where the focus toggle itself is hidden, so the Description tab could not reveal it. Focus mode now applies only at widths of 900 px and above; compact tabs and stacked layouts control pane visibility. The browser regression (390 px tabs, 820 px stacked, 1440 px focus) failed in both engines first and then passed.
 
 The supervisor justified no feature addition, architecture rewrite or bloat removal. Verification: 78/78 unit, 96/96 browser (48 each engine), lint/build/format.
+Iteration 4 follow-up checks: actual Firefox 157 addon compilation/execution PASS (stdout 42), Mozilla 0 errors/0 unreviewed warnings/3 exact notices, production audit 0 vulnerabilities.
+
+### Supervisor iteration 5
+
+A fifth fresh supervisor reviewed the whole project, reran the full suite and reported one P2 and five P3 findings. The implementer independently reproduced each with a failing regression (in both engines for the browser regressions) and accepted all six:
+
+- P2: Ctrl+Enter from inside the editor also triggered CodeMirror's default insert-blank-line command, so every shortcut run modified (and saved) the source. The editor now claims Mod-Enter/Mod-Shift-Enter without editing, and the event still reaches the workspace shortcut.
+- P3: Exit after navigating to another problem reloaded that page and auto-activation immediately reopened the workspace. Exit now leaves a one-shot, problem-specific sessionStorage marker that keeps the next load native; later loads auto-activate normally.
+- P3: after exiting on the original problem, Back/Forward into workspace-pushed history entries changed the URL but kept the old native statement. While inactive, a history step to a different problem now reloads that page natively; hash changes on the same problem are ignored.
+- P3: an edit made while an auto-run was in flight was never run. The edit now queues one follow-up run after the outdated batch finishes, only if the source actually changed. Queuing (rather than restarting) avoids cancelling a local compile.
+- P3: submission review ignored the compiler Codeforces preselects for the account. Review now prefers the stored preference, then the form's preselected compiler if it matches the language, then the first match.
+- P3: deep recursion that Codeforces accepts fails locally because the browser limits the WebAssembly call stack (a few thousand nested calls; not configurable for workers). The runtime error now explains this, and Settings and the README document it alongside the other C++ limits.
+
+Declined: the supervisor's optional removal of unused code (RUNNER_DISCOVER/discover, network cancelOwner, the dispose chain, editor.focus). It was explicitly not required, saves little, and some of it is ordinary lifecycle API.
+
+Verification: 79/79 unit, 106/106 browser (53 each engine), actual Firefox 157 addon compilation/execution PASS (stdout 42), lint/build/format, Mozilla 0 errors/0 unreviewed warnings/3 exact notices, production audit 0 vulnerabilities.

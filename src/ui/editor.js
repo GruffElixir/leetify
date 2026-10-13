@@ -102,7 +102,13 @@ export function createEditor({
     return EditorState.create({
       doc: source,
       extensions: [
-        keymap.of([{ key: 'Mod-Shift-z', run: redo }, indentWithTab]),
+        keymap.of([
+          { key: 'Mod-Shift-z', run: redo },
+          indentWithTab,
+          // Run/Submit shortcuts bubble to the workspace; claim them so basicSetup inserts nothing.
+          { key: 'Mod-Enter', run: () => true },
+          { key: 'Mod-Shift-Enter', run: () => true },
+        ]),
         basicSetup,
         EditorState.tabSize.of(4),
         indentUnit.of('    '),
