@@ -1,5 +1,5 @@
 import { button } from './icons.js';
-import { bindTabs } from './tabs.js';
+import { bindTabs, selectTab } from './tabs.js';
 export function createTestPanel({
   parent,
   onChange = () => {},
@@ -164,9 +164,7 @@ export function createTestPanel({
     const next = event.target.closest('[data-view]')?.dataset.view;
     if (!next) return;
     view = next;
-    root
-      .querySelectorAll('[data-view]')
-      .forEach((tab) => tab.setAttribute('aria-selected', tab.dataset.view === view));
+    selectTab(root.querySelector('[role=tablist]'), root.querySelector(`[data-view="${view}"]`));
     render();
   };
   root.addEventListener('click', click);

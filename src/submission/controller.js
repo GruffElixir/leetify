@@ -93,7 +93,7 @@ export class SubmissionController {
         message: error.message || 'Check My submissions before trying again.',
       };
     }
-    const record = {
+    let record = {
       ...receipt,
       id: receipt.submissionId || prepared.id,
       key: problemKey(prepared.route),
@@ -112,18 +112,19 @@ export class SubmissionController {
         ? `${prepared.route.origin}/${prepared.route.kind === 'gym' ? 'gym' : 'contest'}/${prepared.route.id}/submission/${receipt.submissionId}`
         : statusUrl(prepared.route),
     };
-    await this.update(record);
+    record = await this.update(record);
     if (receipt.status === 'confirmed' && !this.disposed && generation === this.generation)
       this.poll(prepared.route, record);
     return record;
   }
   async update(record) {
     try {
-      await this.repository.recordSubmission(record);
+      record = (await this.repository.recordSubmission(record)) || record;
     } catch {
       record.saveError = 'Submission history could not be saved. Check native My submissions.';
     }
     if (!this.disposed) this.onUpdate(record);
+    return record;
   }
   poll(route, record) {
     this.cancelPolling();
@@ -134,6 +135,16 @@ export class SubmissionController {
       this.timer = null;
       if (this.disposed || generation !== this.generation) return;
       try {
+        const state = await this.repository.readSnapshot();
+        const saved = state.submissions.find((s) => s.id === record.id);
+        if (this.disposed || generation !== this.generation) return;
+        if (!saved) {
+          this.onUpdate({
+            ...record,
+            message: 'Submission history changed. Open native status to check its verdict.',
+          });
+          return;
+        }
         const page = await this.network.getPage(statusUrl(route), {
           signal: this.controller.signal,
         });
@@ -142,8 +153,11 @@ export class SubmissionController {
           (r) => r.submissionId === record.submissionId
         );
         if (match) {
-          record = { ...record, ...match };
-          await this.update(record);
+          record = await this.update({
+            ...record,
+            ...match,
+            expectedStatusRevision: saved ? (saved.statusRevision ?? null) : undefined,
+          });
         }
       } catch (error) {
         if (generation === this.generation && !this.disposed)

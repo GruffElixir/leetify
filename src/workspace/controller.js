@@ -770,20 +770,25 @@ export class WorkspaceController {
   async refreshSubmissions() {
     const route = structuredClone(this.current.route);
     try {
+      const known = new Map(
+        this.state.submissions
+          .filter((record) => record.key === problemKey(route))
+          .map((record) => [record.id, record])
+      );
       const page = await this.network.getPage(statusUrl(route));
       const records = parseStatusRecords(
         new this.window.DOMParser().parseFromString(page.html, 'text/html'),
         route
       );
       if (problemKey(route) !== problemKey(this.current.route)) return;
-      const known = new Map(
-        this.state.submissions
-          .filter((record) => record.key === problemKey(route))
-          .map((record) => [record.id, record])
-      );
       for (const record of records) {
         const local = known.get(record.id);
-        if (local) await this.storage.recordSubmission({ ...local, ...record });
+        if (local)
+          await this.storage.recordSubmission({
+            ...record,
+            language: local.language,
+            expectedStatusRevision: local.statusRevision ?? null,
+          });
       }
       if (known.size) this.state = await this.storage.readSnapshot();
       if (problemKey(route) !== problemKey(this.current.route)) return;

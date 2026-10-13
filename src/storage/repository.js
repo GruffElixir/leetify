@@ -158,13 +158,32 @@ export class StorageRepository {
   }
   recordSubmission(record) {
     validateIdentity(record.key, record.language);
+    const { expectedStatusRevision, ...data } = record;
+    if (
+      expectedStatusRevision !== undefined &&
+      expectedStatusRevision !== null &&
+      typeof expectedStatusRevision !== 'string'
+    )
+      throw new LeetifyError('INVALID_DATA', 'Invalid submission status revision.');
     return this.mutate((state) => {
-      const entry = { ...record, id: String(record.id || id('submission')) };
+      const entry = { ...data, id: String(record.id || id('submission')) };
       const index = state.submissions.findIndex((s) => s.id === entry.id);
+      const current = state.submissions[index];
+      if (expectedStatusRevision !== undefined && !current)
+        throw new LeetifyError(
+          'HISTORY_CHANGED',
+          'Submission history changed while its status was loading.'
+        );
+      if (
+        expectedStatusRevision !== undefined &&
+        (current.statusRevision ?? null) !== expectedStatusRevision
+      )
+        return current;
+      entry.statusRevision = id('status');
       if (index < 0) state.submissions.push(entry);
-      else state.submissions[index] = { ...state.submissions[index], ...entry };
+      else state.submissions[index] = { ...current, ...entry };
       state.submissions = state.submissions.slice(-100);
-      return entry;
+      return state.submissions.find((s) => s.id === entry.id);
     });
   }
   async exportBackup() {
@@ -187,6 +206,7 @@ export class StorageRepository {
         for (const languages of Object.values(imported.solutions))
           for (const entry of Object.values(languages))
             entry.revision = nextSolutionRevision(imported);
+        for (const record of imported.submissions) record.statusRevision = id('status');
         imported.settings.runnerConsentOrigin = '';
         Object.assign(state, clone(imported));
         state.preImportSnapshots = [

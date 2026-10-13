@@ -40,6 +40,7 @@ function harness({ form = 'submit', receipt = 'status', failure = false } = {}) 
     },
   };
   const repository = {
+    readSnapshot: async () => ({ submissions: [...records.values()] }),
     recordSubmission: async (record) => {
       records.set(record.id, record);
       return record;
@@ -115,11 +116,17 @@ test('HTML 200 challenge cannot be called submitted and polling disposal suppres
   const h = harness();
   await h.controller.submit(await h.controller.prepare({ route, language: 'cpp', code: 'x' }));
   let resolve;
+  let started;
+  const requestStarted = new Promise((done) => {
+    started = done;
+  });
   h.network.getPage = () =>
     new Promise((r) => {
       resolve = r;
+      started();
     });
   const poll = h.scheduled.values().next().value();
+  await requestStarted;
   h.controller.dispose();
   const count = h.updates.length;
   resolve({ html: html('status'), url: 'https://codeforces.com/problemset/status' });

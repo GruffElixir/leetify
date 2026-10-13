@@ -1,3 +1,10 @@
+export function selectTab(list, selected) {
+  list.querySelectorAll('[role=tab]').forEach((tab) => {
+    const active = tab === selected;
+    tab.setAttribute('aria-selected', active);
+    tab.tabIndex = active ? 0 : -1;
+  });
+}
 export function bindTabs(root) {
   const update = (list) =>
     list.querySelectorAll('[role=tab]').forEach((tab) => {

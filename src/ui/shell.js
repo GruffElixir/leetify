@@ -1,6 +1,6 @@
 import { button, icon } from './icons.js';
 import { LANGUAGES } from '../domain/languages.js';
-import { bindTabs } from './tabs.js';
+import { bindTabs, selectTab } from './tabs.js';
 export function createShell({ document: doc, settings, onAction }) {
   const root = doc.createElement('section');
   root.id = 'leetify-workspace';
@@ -115,17 +115,17 @@ export function createShell({ document: doc, settings, onAction }) {
     setActiveView(view) {
       refs.statementScroll.hidden = view === 'submissions';
       refs.submissions.hidden = view !== 'submissions';
-      root
-        .querySelectorAll('.lf-statement-tabs [role=tab]')
-        .forEach((tab) => tab.setAttribute('aria-selected', tab.dataset.action === view));
+      selectTab(
+        root.querySelector('.lf-statement-tabs'),
+        root.querySelector(`[data-action="${view}"]`)
+      );
     },
     setMobileView(view) {
       root.dataset.mobileView = view;
-      root
-        .querySelectorAll('.lf-mobile-tabs [role=tab]')
-        .forEach((tab) =>
-          tab.setAttribute('aria-selected', tab.dataset.action === `mobile-${view}`)
-        );
+      selectTab(
+        root.querySelector('.lf-mobile-tabs'),
+        root.querySelector(`[data-action="mobile-${view}"]`)
+      );
     },
     setStatus(kind, text, state = '') {
       const target = root.querySelector(`[data-status="${kind}"]`);
