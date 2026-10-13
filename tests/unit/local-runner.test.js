@@ -129,6 +129,29 @@ test('cancelled compilation and worker crashes recover on the next request', asy
   f.timers.fire(60000);
 });
 
+test('same-source retry recovers from a toolchain initialization failure instead of caching it', async () => {
+  const f = fixture({ holdCompile: true });
+  const first = f.service.execute(options());
+  await tick();
+  f.workers[0].emit({
+    id: 'one',
+    module: null,
+    retryable: true,
+    compile: { code: 1, stdout: '', stderr: '', message: 'Missing packaged asset. Try Run again.' },
+  });
+  assert.equal((await first).compile.code, 1);
+  const second = f.service.execute(options({ requestId: 'two' }));
+  await tick();
+  assert.equal(
+    f.compiles(),
+    2,
+    'The same source must initialize a fresh compiler after a toolchain failure'
+  );
+  f.workers.at(-1).complete();
+  assert.equal((await second).run.stdout, 'first');
+  f.timers.fire(60000);
+});
+
 test('watchdog kills infinite execution and compilation with actionable results', async () => {
   const f = fixture({ holdRun: true });
   const result = f.service.execute(options());

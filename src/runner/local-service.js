@@ -109,7 +109,8 @@ export class LocalRunnerService {
             progress: (phase) => this.progress(options, phase),
           }
         );
-        this.cache = { code: options.code, result };
+        if (result.retryable) this.release();
+        else this.cache = { code: options.code, result };
         return result;
       } catch (error) {
         this.release();

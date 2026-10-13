@@ -32,3 +32,23 @@ Final: fixed late POST rearming cancelled polling — a late confirmed POST reta
 Final: fixed compatibility boundaries — alphanumeric native indices, multi-character/numeric legacy migration, and native sidebar links RED→GREEN; final suite 57/57 unit, 70/70 browser.
 Final: fixed untrusted history navigation — submission history derives native links from identities instead of backup URLs RED→GREEN; final suite 57/57 unit, 70/70 browser.
 Final verification: npm.cmd run check (lint/build/57 unit tests), npm.cmd run test:browser (70/70, Chromium/Firefox), npm.cmd run format:check, npm.cmd run check:extension (0 errors/0 unreviewed warnings/3 exact documented notices), npm.cmd run package (73 files), ZIP path/entry/license/source-map inspection, npm audit (0 production vulnerabilities). No real submission, live runner execution, native installation, push, publication, or PR performed. No deferred Minor findings.
+
+## 2026-10-13: Built-in C++20 WebAssembly runner
+
+User chose local WebAssembly to remove Docker and service setup from C++ Run. Native execution continued in the existing clean feature checkout. Design and plan are under docs/superpowers with the 2026-10-13-local-cpp prefix.
+
+Bundled browsercc 0.1.1 (Clang/LLD 20.1.2, WASI SDK 25) and browser_wasi_shim 0.4.2. Compiler workers serialize jobs and cache the latest unchanged source; per-case execution workers get fresh, read-only stdin and bounded stdout/stderr, without filesystem or network capabilities. C++ defaults to local for existing/new settings. Piston remains optional for C++ and available for other languages with explicit consent. No automatic remote fallback. Program limits: 2 seconds, 256 MiB linear memory, 256 KiB output; 1 MiB source/input; 60-second load, 30-second compile and 60-second idle release.
+
+Rulings and verified fixes:
+- Use the Clang driver's actual bare wasm-ld invocation rather than assuming /bin; real browser compiler tests failed first and then passed.
+- Rearm compiler idle release on cache hits; unit cleanup regression failed first and then passed.
+- Expand the upstream bits convenience header using only standard includes after a real sstream compilation failure. Binary assets remain unchanged.
+- Check program memory bounds with the Wasm memory.grow intrinsic: an unused malloc/free pair may be optimized away and cannot prove an allocation bound.
+- The options fixture resets mocked storage on page reload. Assert repository persistence and rendered choice, with native extension APIs verified separately.
+- Read-only File alone doesn't block upstream OpenFile resize/allocation. Deny those stdin methods too; real C++ syscall regression changed from 0 0 0 bc to 1 1 1 abc.
+- Independent fresh review found toolchain initialization failures cached across same-source retries. Catch responses now declare retryability and release the compiler instead of caching. Unit and real missing-asset browser regressions failed first and then passed. No deferred Minor findings; no declined-to-judge findings.
+- License text retains its content with trailing whitespace normalized. Package output filename follows package.json version. Localhost access is optional, rather than a mandatory host permission for local C++ users.
+
+Verification at this stage: 65/65 unit tests; 90/90 browser tests (45 each engine); lint/build/format; Mozilla linter 0 errors, 0 unreviewed warnings and the same 3 narrowly documented notices; production npm audit 0 vulnerabilities. Actual temporary Firefox 157 installation through Mozilla RDP compiled a bits/stdin C++ program through the real extension background router and returned stdout 42 with zero exits. An isolated generated profile was used, with no user's Firefox profile changed. Firefox 128 and a complete authenticated live Codeforces workspace remain manual boundaries. No real solution was submitted and nothing was pushed or published.
+
+User subsequently requested fresh supervisor iterations across the project until both supervisor and implementer agree. Their requested loop takes precedence over the original single-review finish workflow. Results will be recorded below.

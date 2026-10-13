@@ -71,6 +71,7 @@ globalThis.onmessage = async ({ data: { id, code } }) => {
     globalThis.postMessage({
       id,
       module: null,
+      retryable: true,
       compile: localStage(1, '', diagnostics, {
         message: error.message || 'The local C++ compiler failed. Try running again.',
       }),

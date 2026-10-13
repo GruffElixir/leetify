@@ -10,3 +10,5 @@ Our standard-header convenience shim replaces the limited bundled bits/stdc++.h 
 Full license texts and attribution notices in licenses/ are included in THIRD_PARTY_NOTICES.md. LLVM and WASI license texts are from their corresponding release tags. Emscripten's dual MIT/NCSA license is included for its generated runtime and emmalloc. browsercc does not record its exact Emscripten build version (its Dockerfile selects latest), so binaries are pinned by the npm artifact rather than claiming a reproducible LLVM rebuild.
 
 WASI libc's third-party notices cover cloudlibc, musl, musl-fts, dlmalloc (CC0), and emmalloc. Their notices are retained alongside the WASI license bundle. Emscripten.txt is the unchanged dual license text from Emscripten 4.0.6. No upstream binary changes are made.
+
+License and attribution text is retained, with trailing whitespace normalized for repository checks.

@@ -185,6 +185,30 @@ test('cancel local compilation and recover with a fresh source', async ({ page }
   await expect(page.locator('.lf-test-summary')).toContainText('2/2', { timeout: 60000 });
 });
 
+test('retrying unchanged C++ source recovers after a packaged asset fails to load', async ({
+  page,
+}) => {
+  await extension(page, {
+    actualLocalRunner: true,
+    settings: { cppRunner: 'local', runnerConsentOrigin: '' },
+  });
+  let fail = true;
+  await page.route('https://codeforces.com/__leetify/sysroot.tar', async (route) => {
+    if (fail) return route.fulfill({ status: 404, body: '' });
+    return route.fallback();
+  });
+  await replaceCode(
+    page,
+    '#include <iostream>\nint main(){int n;std::cin>>n;std::cout<<(n==8?"YES":"NO");}'
+  );
+  await page.getByRole('button', { name: 'Run all', exact: true }).click();
+  await expect(page.locator('.lf-test-summary')).toContainText('2 failed', { timeout: 60000 });
+  await expect(page.locator('.lf-tests')).toContainText('Missing packaged C++ asset');
+  fail = false;
+  await page.getByRole('button', { name: 'Run all', exact: true }).click();
+  await expect(page.locator('.lf-test-summary')).toContainText('2 passed', { timeout: 60000 });
+});
+
 test('a real infinite loop times out and a subsequent run still works', async ({ page }) => {
   await extension(page, {
     actualLocalRunner: true,
