@@ -29,6 +29,7 @@ const types = new Set([
   'CF_CANCEL',
   'CF_CANCEL_OWNER',
   'OPEN_OPTIONS',
+  'KEEPALIVE',
 ]);
 export function createMessageRouter({ repository, runner, localRunner, network, extensionApi }) {
   const runnerEpochs = new Map();
@@ -46,6 +47,7 @@ export function createMessageRouter({ repository, runner, localRunner, network, 
             throw new LeetifyError('INVALID_MESSAGE', 'Unknown storage operation.');
           return { ok: true, data: await repository[payload.method](payload.args) };
         }
+        if (message.type === 'KEEPALIVE') return { ok: true };
         if (message.type === 'OPEN_OPTIONS') {
           await extensionApi.runtime.openOptionsPage();
           return { ok: true };

@@ -1,7 +1,7 @@
 import { firefox } from 'playwright';
 import net from 'node:net';
 import path from 'node:path';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 const port = await new Promise((resolve, reject) => {
   const server = net.createServer();
   server.once('error', reject);
@@ -22,6 +22,9 @@ const context = await firefox.launchPersistentContext(profile, {
     'devtools.debugger.prompt-connection': false,
     'devtools.chrome.enabled': true,
     'extensions.webextensions.uuids': JSON.stringify({ 'leetify-cf@yourdomain.com': uuid }),
+    // Suspend the idle event page well before an ordinary first compile finishes. No devtools
+    // watcher is attached, because one would keep the background alive.
+    'extensions.background.idle.timeout': 3000,
   },
 });
 const browser = context.browser();
@@ -81,52 +84,35 @@ try {
     openDevTools: false,
   });
   console.log('Installed', JSON.stringify(installed));
-  const addons = await request({ to: 'root', type: 'listAddons' });
-  const addon = addons.addons.find((addon) => addon.id === 'leetify-cf@yourdomain.com');
-  const watcher = await request({ to: addon.actor, type: 'getWatcher' });
-  await request({ to: watcher.actor, type: 'watchTargets', targetType: 'frame' });
-  const background = (
-    await receive(
-      (packet) =>
-        packet.type === 'target-available-form' &&
-        packet.target.url.endsWith('/_generated_background_page.html')
-    )
-  ).target;
-  const evaluate = async (actor, text) => {
-    const reply = await request({ to: actor, type: 'evaluateJSAsync', text, eager: false });
-    const result = await receive(
-      (packet) => packet.type === 'evaluationResult' && packet.resultID === reply.resultID
-    );
-    if (result.hasException) throw new Error(result.exceptionMessage);
-    return result.result;
-  };
-  await evaluate(background.consoleActor, 'browser.runtime.openOptionsPage(); "opened"');
-  const options = (
-    await receive(
-      (packet) =>
-        packet.type === 'target-available-form' && packet.target.url.endsWith('/options.html')
-    )
-  ).target;
-  const payload = {
-    runnerMode: 'local',
-    language: 'cpp',
-    requestId: 'native-probe',
-    code: '#include <bits/stdc++.h>\nint main(){int n;std::cin>>n;std::cout<<n*2;}',
-    stdin: '21',
-  };
-  await evaluate(
-    options.consoleActor,
-    `globalThis.__nativeResult = "pending"; browser.runtime.sendMessage(${JSON.stringify({ type: 'RUNNER_EXECUTE', payload })}).then(result => globalThis.__nativeResult=JSON.stringify(result), error => globalThis.__nativeResult=JSON.stringify({error:error.message})); "started"`
+  const fixture = await readFile('tests/fixtures/problem-multiple.html', 'utf8');
+  await context.route('https://codeforces.com/**', (route) =>
+    route.fulfill({ contentType: 'text/html', body: fixture })
   );
-  let value = 'pending';
-  for (let i = 0; i < 60 && value === 'pending'; i++) {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    value = await evaluate(options.consoleActor, 'globalThis.__nativeResult');
-  }
-  const result = JSON.parse(value);
-  console.log('Native result', JSON.stringify(result));
-  if (!result.ok || result.run?.stdout !== '42')
-    throw new Error('Native extension execution failed');
+  const page = await context.newPage();
+  await page.goto('https://codeforces.com/problemset/problem/4/A');
+  await page.locator('#leetify-workspace').waitFor({ timeout: 20000 });
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('Control+A');
+  await page.keyboard.insertText(
+    '#include <bits/stdc++.h>\nint main(){int w;std::cin>>w;std::cout<<(w>2&&w%2==0?"YES":"NO");}'
+  );
+  await page.getByRole('button', { name: 'Run all', exact: true }).click();
+  const summary = page.locator('.lf-test-summary');
+  await page.waitForFunction(
+    () => /passed ·/.test(document.querySelector('.lf-test-summary')?.textContent),
+    null,
+    { timeout: 120000 }
+  );
+  const text = await summary.textContent();
+  const diagnostics = await page
+    .locator('.lf-case-tabs [data-status]')
+    .evaluateAll((tabs) => tabs.map((tab) => `${tab.textContent}:${tab.dataset.status}`));
+  const output = await page.locator('.lf-test-body').textContent();
+  console.log(
+    'Native workspace run',
+    JSON.stringify({ summary: text, cases: diagnostics, output: output.slice(0, 300) })
+  );
+  if (!text.startsWith('2 passed · 0 failed')) throw new Error('Native extension execution failed');
   console.log('NATIVE FIREFOX EXTENSION: PASS');
 } finally {
   socket?.destroy();

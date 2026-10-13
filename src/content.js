@@ -5,7 +5,20 @@ import { WorkspaceController } from './workspace/controller.js';
 import { parseProblemUrl, problemKey } from './domain/problem.js';
 const extensionApi = globalThis.browser;
 if (extensionApi?.runtime && parseProblemUrl(window.location.href)) {
-  const send = (message) => extensionApi.runtime.sendMessage(message);
+  // Firefox suspends the idle background page even while a response is pending, so long
+  // compiles and requests would fail. Any incoming message resets its idle timer.
+  let pending = 0;
+  let heartbeat;
+  const send = (message) => {
+    if (!pending++)
+      heartbeat = setInterval(
+        () => extensionApi.runtime.sendMessage({ type: 'KEEPALIVE' }).catch(() => {}),
+        1000
+      );
+    return extensionApi.runtime.sendMessage(message).finally(() => {
+      if (!--pending) clearInterval(heartbeat);
+    });
+  };
   const storage = new StorageClient(send, extensionApi.storage.onChanged);
   const network = createNetworkClient(send);
   const progressListeners = new Map();

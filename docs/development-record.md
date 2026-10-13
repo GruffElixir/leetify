@@ -126,3 +126,13 @@ A seventh fresh supervisor reran the suite at 38668b3 and reported one P2 and tw
 The supervisor found no justified feature addition or bloat removal. It noted the KaTeX ttf/woff font formats (~0.8 MB against a ~95 MB toolchain) as not worth removing, and did not re-raise declined items.
 
 Verification: 80/80 unit, 116/116 browser (58 each engine), actual Firefox 157 addon compilation/execution PASS (stdout 42), lint/build/format, Mozilla 0 errors/0 unreviewed warnings/3 exact notices, production audit 0 vulnerabilities.
+
+### Supervisor iteration 8
+
+An eighth fresh supervisor ran the real extension in Firefox 157 without a devtools watcher and reported one P2. The implementer accepted it after independent reproduction. Firefox suspends a non-persistent MV3 background page about 30 seconds after its last incoming event, even while a runtime.onMessage response is still pending. Compiler loading (60 seconds), compilation (30 seconds), Piston and Codeforces requests can exceed that, so long requests failed with "Could not establish connection. Receiving end does not exist." Because that result was rejected rather than a compile failure, it repeated for every case. The previous native test attached a devtools watcher, which keeps the background alive and hid the problem.
+
+The content script now sends a tiny KEEPALIVE message every second while any request to the background is pending, and the router acknowledges it. The native test was rewritten as a real content-script workspace run with no watcher and a 3-second idle timeout. Before the fix it failed with both samples showing the connection error; afterwards both samples pass. The one-second heartbeat runs only while a request is pending, so it adds no idle traffic.
+
+The supervisor found no justified feature addition or bloat removal. It mentioned that recovered drafts cannot be deleted, as an optional nicety; that is not required because they are created only by conflicts or imports.
+
+Verification: 80/80 unit, 116/116 browser (58 each engine), native Firefox 157 workspace run with a 3-second background idle timeout and no watcher (2/2 samples passed through the real content script, background and Clang/WASI workers), lint/build/format, Mozilla 0 errors/0 unreviewed warnings/3 exact notices, production audit 0 vulnerabilities.
