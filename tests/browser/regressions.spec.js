@@ -223,3 +223,20 @@ test('workspace messages use one live region that compact layouts keep', async (
   await expect(regions).toHaveCount(1, { timeout: 4000 });
   expect(await regions.evaluate((element) => getComputedStyle(element).display)).not.toBe('none');
 });
+test('the covered native page is inert while the workspace is open', async ({ page }) => {
+  await extension(page);
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press('Tab');
+  expect(await page.evaluate(() => !!document.activeElement?.closest('#leetify-workspace'))).toBe(
+    true
+  );
+  await page.getByRole('button', { name: 'Exit workspace' }).click();
+  await expect(page.locator('#content > .problem-statement')).toBeVisible();
+  expect(await page.locator('[inert]').count()).toBe(0);
+  await page.evaluate(() => __leetifyTest.toggle());
+  await expect(page.locator('#leetify-workspace')).toBeVisible();
+  await page.getByRole('button', { name: 'Problems', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: /^B[.]/ }).click();
+  await expect(page.locator('#leetify-workspace h1')).toContainText('B.');
+});

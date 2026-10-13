@@ -48,7 +48,14 @@ export function createEditor({
             comment: '#747f91',
             variable: '#8dcce8',
           };
+  // Each EditorView.theme() call mounts new style rules, so reuse one per appearance.
+  const themes = new Map();
   function theme() {
+    const key = `${config.theme}:${config.fontSize}`;
+    if (!themes.has(key)) themes.set(key, buildTheme());
+    return themes.get(key);
+  }
+  function buildTheme() {
     const colors = palette();
     return [
       EditorView.theme(

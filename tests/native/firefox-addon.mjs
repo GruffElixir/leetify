@@ -91,6 +91,10 @@ try {
   const page = await context.newPage();
   await page.goto('https://codeforces.com/problemset/problem/4/A');
   await page.locator('#leetify-workspace').waitFor({ timeout: 20000 });
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press('Tab');
+  if (!(await page.evaluate(() => !!document.activeElement?.closest('#leetify-workspace'))))
+    throw new Error('Keyboard focus reached the covered native page');
   await page.locator('.cm-content').click();
   await page.keyboard.press('Control+A');
   await page.keyboard.insertText(

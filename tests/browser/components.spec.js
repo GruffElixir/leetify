@@ -200,3 +200,22 @@ test('persisted focus mode cannot hide the statement on compact layouts', async 
   await expect(statement).toBeHidden();
   await expect(page.getByRole('button', { name: 'Focus mode', exact: true })).toBeVisible();
 });
+test('reconfiguring the editor reuses its theme styles', async ({ page }) => {
+  await components(page);
+  const rules = () =>
+    page.evaluate(() =>
+      [...document.styleSheets, ...(document.adoptedStyleSheets || [])].reduce(
+        (sum, sheet) => sum + sheet.cssRules.length,
+        0
+      )
+    );
+  const cycle = () =>
+    page.evaluate(() => {
+      for (const theme of ['light', 'monokai', 'dark'])
+        testApp.editor.configure({ ...testApp.settings, theme });
+    });
+  await cycle();
+  const before = await rules();
+  for (let i = 0; i < 10; i++) await cycle();
+  expect(await rules()).toBe(before);
+});

@@ -165,11 +165,25 @@ export class WorkspaceController {
     if (this.active) return;
     this.active = true;
     this.document.body.append(this.shell.root);
+    this.coverPage(true);
     this.document.body.classList.add('leetify-open');
     this.shell.description.append(this.current.statement);
     renderRawMath(this.current.statement);
     this.editor.view.requestMeasure();
     this.shell.configure(this.settings);
+  }
+  coverPage(covered) {
+    // The full-screen workspace covers the native page; keep focus and assistive technology out of it.
+    for (const element of this.covered || []) element.inert = false;
+    this.covered = covered
+      ? [...this.document.body.children].filter(
+          (element) =>
+            element !== this.shell.root &&
+            !element.classList.contains('leetify-dialog-layer') &&
+            !element.inert
+        )
+      : [];
+    for (const element of this.covered) element.inert = true;
   }
   async deactivate({ force = false } = {}) {
     if (!this.active) return;
@@ -190,6 +204,7 @@ export class WorkspaceController {
     this.closeDialog();
     this.active = false;
     this.shell.root.remove();
+    this.coverPage(false);
     this.document.body.classList.remove('leetify-open');
     if (this.currentUrl !== this.nativeUrl) {
       this.leaveNative(this.current.route);
@@ -1088,6 +1103,7 @@ export class WorkspaceController {
     this.tests.dispose();
     this.submissions.dispose();
     this.shell.dispose();
+    this.coverPage(false);
     this.document.body.classList.remove('leetify-open');
     this.active = false;
   }

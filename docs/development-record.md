@@ -136,3 +136,14 @@ The content script now sends a tiny KEEPALIVE message every second while any req
 The supervisor found no justified feature addition or bloat removal. It mentioned that recovered drafts cannot be deleted, as an optional nicety; that is not required because they are created only by conflicts or imports.
 
 Verification: 80/80 unit, 116/116 browser (58 each engine), native Firefox 157 workspace run with a 3-second background idle timeout and no watcher (2/2 samples passed through the real content script, background and Clang/WASI workers), lint/build/format, Mozilla 0 errors/0 unreviewed warnings/3 exact notices, production audit 0 vulnerabilities.
+
+### Supervisor iteration 9
+
+A ninth fresh supervisor ran the real extension in Firefox 157 and isolated editor probes. It reported one P2 and one P3, both accepted after independent reproduction in both engines:
+
+- P2 (accessibility): the full-screen workspace covered the native page, but keyboard focus and assistive technology could still reach it. In the fixture, the first three Tab stops were hidden native links, and live pages have many more. While the workspace is open, its covered body siblings are now inert, remembering any that were already inert. Exit and dispose restore them, and dialog layers stay interactive. Firefox supports inert from version 112. A browser regression and the native Firefox test both check that the first Tab stop is inside the workspace.
+- P3 (performance): every editor configure() built new EditorView.theme/HighlightStyle extensions. style-mod never removes old rules, so each autosave (via storage events) added about 15 CSS rules, and the cost of each configure grew over a session. Themes are now memoized per theme and font size. The regression measured 326 rules growing to 776 over ten theme cycles before the fix; afterwards the count stays constant.
+
+The supervisor found no justified feature addition or bloat removal. It mentioned float-tolerant comparison, caching the Clang -### invocation and the activeTab permission as optional. None is necessary within scope.
+
+Verification: 80/80 unit, 120/120 browser (60 each engine), native Firefox 157 workspace run with a 3-second idle timeout (first Tab stop inside the workspace, 2/2 samples passed), lint/build/format, Mozilla 0 errors/0 unreviewed warnings/3 exact notices, production audit 0 vulnerabilities.
