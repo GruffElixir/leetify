@@ -158,3 +158,9 @@ A tenth fresh supervisor reran all suites, including the native Firefox test, an
 The supervisor found no justified feature addition or bloat removal.
 
 Verification: 81/81 unit, 122/122 browser (61 each engine), native Firefox 157 workspace run with a 3-second idle timeout PASS, lint/build/format, Mozilla 0 errors/0 unreviewed warnings/3 exact notices, production audit 0 vulnerabilities.
+
+### Release decision
+
+After iteration 10, the user decided the review loop was sufficient and asked to release. An eleventh fresh supervisor had started and was stopped before it reported, so it produced no findings or verdict. Every finding from supervisors 4–10 was reproduced, fixed with failing-first regressions, or explicitly declined with reasons recorded above. The loop ended by the user's release decision, not by a final supervisor's formal AGREE verdict.
+
+Final verification at the release commit: 81/81 unit, 122/122 browser (61 each engine), native Firefox 157 workspace run (no devtools watcher, 3-second background idle timeout) PASS, lint/build/format, Mozilla 0 errors/0 unreviewed warnings/3 exact documented notices, production audit 0 vulnerabilities. The packaged ZIP matches the release build byte for byte, and the compiler assets match the pinned npm package. External boundaries remain uncertified: authenticated live Codeforces markup/challenges, real submissions and judging (including live verdict wording in either interface language), external Piston isolation, native Firefox 128, physical screen-reader use, and Mozilla signing/publication. The branch stays local; nothing was pushed, published or submitted.
