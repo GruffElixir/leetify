@@ -1,5 +1,6 @@
 import { button } from './icons.js';
 import { canonicalLegacyKey } from '../domain/problem.js';
+import { isAcceptedVerdict } from '../codeforces/status.js';
 export function createSubmissions({ parent, onRefresh = () => {}, nativeUrl }) {
   const doc = parent.ownerDocument;
   const toolbar = doc.createElement('div');
@@ -43,7 +44,7 @@ export function createSubmissions({ parent, onRefresh = () => {}, nativeUrl }) {
         title.rel = 'noopener noreferrer';
         const verdict = doc.createElement('strong');
         verdict.textContent = record.verdict || 'Pending';
-        verdict.dataset.status = /accepted/i.test(record.verdict)
+        verdict.dataset.status = isAcceptedVerdict(record.verdict)
           ? 'passed'
           : record.pending
             ? 'pending'

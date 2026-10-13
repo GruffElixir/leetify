@@ -1,5 +1,8 @@
 import { parseProblemUrl, problemKey } from '../domain/problem.js';
 import { assertCodeforcesPage } from './problem.js';
+// Codeforces serves English or Russian verdict text; the verdict cell also flags judging.
+const PENDING = /queue|running|testing|judging|pending|compiling|очеред|выполняется|тестир|компил/i;
+export const isAcceptedVerdict = (verdict) => /accepted|полное решение/i.test(verdict || '');
 export function parseStatusRecords(doc, route) {
   assertCodeforcesPage(doc);
   const records = [];
@@ -26,7 +29,10 @@ export function parseStatusRecords(doc, route) {
       submissionId,
       key: problemKey(route),
       verdict: verdict || 'Pending',
-      pending: !verdict || /queue|running|testing|judging|pending/i.test(verdict),
+      pending:
+        !verdict ||
+        row.querySelector('[waiting]')?.getAttribute('waiting') === 'true' ||
+        PENDING.test(verdict),
       url: link
         ? new URL(link.getAttribute('href'), route.origin).href
         : `${route.origin}/${route.kind === 'gym' ? 'gym' : 'contest'}/${route.id}/submission/${submissionId}`,

@@ -6,7 +6,11 @@ import { extractSamples, readSampleText } from '../../src/codeforces/samples.js'
 import { parseProblemDocument, sanitizeStatement } from '../../src/codeforces/problem.js';
 import { renderRawMath } from '../../src/codeforces/math.js';
 import { parseSubmitForm, buildSubmission } from '../../src/codeforces/forms.js';
-import { parseStatusRecords, parseSubmissionReceipt } from '../../src/codeforces/status.js';
+import {
+  isAcceptedVerdict,
+  parseStatusRecords,
+  parseSubmissionReceipt,
+} from '../../src/codeforces/status.js';
 import { parseProblemUrl } from '../../src/domain/problem.js';
 const page = (name, url = 'https://codeforces.com/problemset/problem/4/A') =>
   new JSDOM(readFileSync(new URL(`../fixtures/${name}.html`, import.meta.url), 'utf8'), { url })
@@ -185,5 +189,30 @@ test('native sidebar links supply same-contest problems without unrelated routes
   assert.deepEqual(
     parseProblemDocument(doc, route.url).problems.map((problem) => problem.route.index),
     ['A', 'AA']
+  );
+});
+test('pending and accepted verdicts are recognized in the Russian interface', () => {
+  const row = (id, verdict, attributes = '') =>
+    `<tr data-submission-id="${id}"><td><a href="/contest/4/submission/${id}">${id}</a></td><td><a href="/contest/4/problem/A">A</a></td><td class="submissionVerdictWrapper" ${attributes}>${verdict}</td></tr>`;
+  const doc = new JSDOM(
+    `<table class="status-frame-datatable">${[
+      row(1, 'В очереди'),
+      row(2, 'Выполняется на тесте 3'),
+      row(3, 'Полное решение'),
+      row(4, 'Неправильный ответ на тесте 2'),
+      row(5, 'Компиляция', 'waiting="true"'),
+    ].join('')}</table>`,
+    { url: 'https://codeforces.com/contest/4/my' }
+  ).window.document;
+  const records = parseStatusRecords(doc, route);
+  assert.deepEqual(
+    records.map((record) => [record.pending, isAcceptedVerdict(record.verdict)]),
+    [
+      [true, false],
+      [true, false],
+      [false, true],
+      [false, false],
+      [true, false],
+    ]
   );
 });

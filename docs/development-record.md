@@ -147,3 +147,14 @@ A ninth fresh supervisor ran the real extension in Firefox 157 and isolated edit
 The supervisor found no justified feature addition or bloat removal. It mentioned float-tolerant comparison, caching the Clang -### invocation and the activeTab permission as optional. None is necessary within scope.
 
 Verification: 80/80 unit, 120/120 browser (60 each engine), native Firefox 157 workspace run with a 3-second idle timeout (first Tab stop inside the workspace, 2/2 samples passed), lint/build/format, Mozilla 0 errors/0 unreviewed warnings/3 exact notices, production audit 0 vulnerabilities.
+
+### Supervisor iteration 10
+
+A tenth fresh supervisor reran all suites, including the native Firefox test, and reported two P3 findings. Both were accepted:
+
+- P3: verdict polling and colouring only understood English. Codeforces' Russian interface ("В очереди", "Выполняется на тесте 3") parsed as final, so polling stored a queued verdict and stopped. "Полное решение" was coloured as failed. The status parser now treats a verdict cell flagged waiting="true", or English or Russian queue/running/testing/compiling text, as pending. A shared isAcceptedVerdict recognizes English and Russian Accepted. The supervisor reproduced the polling stop with the real parser, controller and repository. The implementer's unit fixture first failed at the new export; the old English-only pattern cannot match Cyrillic. The Russian strings and the waiting attribute come from knowledge of Codeforces markup and remain part of the live-markup verification boundary.
+- P3: Ctrl+Shift+Enter ignored a review that was already loading (the toolbar button was disabled). A second press loaded another review and replaced the first dialog. The shortcut now follows the Submit button's disabled state. A browser regression with a held submit page failed in both engines (two loads) and then passed.
+
+The supervisor found no justified feature addition or bloat removal.
+
+Verification: 81/81 unit, 122/122 browser (61 each engine), native Firefox 157 workspace run with a 3-second idle timeout PASS, lint/build/format, Mozilla 0 errors/0 unreviewed warnings/3 exact notices, production audit 0 vulnerabilities.

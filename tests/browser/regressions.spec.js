@@ -240,3 +240,18 @@ test('the covered native page is inert while the workspace is open', async ({ pa
   await page.getByRole('button', { name: /^B[.]/ }).click();
   await expect(page.locator('#leetify-workspace h1')).toContainText('B.');
 });
+test('the submit shortcut is ignored while a review is loading', async ({ page }) => {
+  await extension(page);
+  await replaceCode(page, 'int main() {}');
+  await page.evaluate(() => (__leetifyTest.holdSubmitPage = true));
+  await page.keyboard.press('ControlOrMeta+Shift+Enter');
+  await expect.poll(() => page.evaluate(() => __leetifyTest.submitPageRequests)).toBe(1);
+  await page.keyboard.press('ControlOrMeta+Shift+Enter');
+  await page.evaluate(() => {
+    __leetifyTest.holdSubmitPage = false;
+    __leetifyTest.submitPageResolvers.splice(0).forEach((resolve) => resolve());
+  });
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => __leetifyTest.submitPageRequests)).toBe(1);
+});

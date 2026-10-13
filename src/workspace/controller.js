@@ -131,8 +131,10 @@ export class WorkspaceController {
       if (!this.active || this.document.querySelector('.leetify-dialog-layer')) return;
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         event.preventDefault();
-        if (event.shiftKey) this.reviewSubmission();
-        else this.run();
+        // Match the disabled Submit button while a review is already loading.
+        if (event.shiftKey) {
+          if (!this.shell.submit.disabled) this.reviewSubmission();
+        } else this.run();
       }
     };
     this.shell.root.addEventListener('keydown', this.shortcut);

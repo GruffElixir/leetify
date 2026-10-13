@@ -22,6 +22,9 @@ const test = (window.__leetifyTest = {
   failNavigation: false,
   holdRuns: false,
   submitPage: 'submit',
+  holdSubmitPage: false,
+  submitPageRequests: 0,
+  submitPageResolvers: [],
   executeNetworkFailure: false,
   executionRequests: [],
   executionResolvers: [],
@@ -85,7 +88,11 @@ const mockedFetch = async (url, init = {}) => {
   }
   if (test.failNavigation && /\/problem\/B|\/problem\/4\/B/.test(url))
     return response(fixtures.challenge, url);
-  if (url.includes('/submit')) return response(fixtures[test.submitPage], url);
+  if (url.includes('/submit')) {
+    test.submitPageRequests++;
+    if (test.holdSubmitPage) await new Promise((resolve) => test.submitPageResolvers.push(resolve));
+    return response(fixtures[test.submitPage], url);
+  }
   if (url.includes('/my') || url.includes('/status'))
     return response('<table class="status-frame-datatable"></table>', url);
   return response(
