@@ -1,5 +1,6 @@
 import { StorageRepository } from '../../src/storage/repository.js';
 import { RunnerService } from '../../src/runner/service.js';
+import { LocalRunnerService } from '../../src/runner/local-service.js';
 import { CodeforcesNetwork } from '../../src/codeforces/network.js';
 import { createMessageRouter } from '../../src/platform/messages.js';
 import { DEFAULT_SETTINGS } from '../../src/domain/settings.js';
@@ -10,6 +11,7 @@ const state = emptyState();
 state.settings = {
   ...structuredClone(DEFAULT_SETTINGS),
   runnerConsentOrigin: 'http://127.0.0.1:2000',
+  cppRunner: 'piston',
   ...config.settings,
 };
 const data = config.storage || { [STORAGE_KEY]: state };
@@ -98,6 +100,14 @@ const runner = new RunnerService({
   fetch: mockedFetch,
   permissions: { contains: async () => true },
 });
+const localRunner = config.actualLocalRunner
+  ? new LocalRunnerService({
+      workerFactory: (kind) =>
+        new Worker(`https://codeforces.com/__leetify/${kind}-worker.js`, { type: 'module' }),
+      onProgress: (payload) =>
+        contentListeners.forEach((listener) => listener({ type: 'RUNNER_PROGRESS', payload })),
+    })
+  : undefined;
 const network = new CodeforcesNetwork({ fetch: mockedFetch });
 const extensionApi = {
   permissions: { contains: async () => !test.denyPermission },
@@ -108,7 +118,7 @@ const extensionApi = {
     },
   },
 };
-const router = createMessageRouter({ repository, runner, network, extensionApi });
+const router = createMessageRouter({ repository, runner, localRunner, network, extensionApi });
 window.browser = {
   runtime: {
     id: 'test-extension',

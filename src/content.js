@@ -8,8 +8,9 @@ if (extensionApi?.runtime && parseProblemUrl(window.location.href)) {
   const send = (message) => extensionApi.runtime.sendMessage(message);
   const storage = new StorageClient(send, extensionApi.storage.onChanged);
   const network = createNetworkClient(send);
+  const progressListeners = new Map();
   const runner = {
-    execute: ({ signal, ...payload }) => {
+    execute: ({ signal, onProgress, ...payload }) => {
       const cancel = () =>
         send({ type: 'RUNNER_CANCEL', payload: { requestId: payload.requestId } }).catch(() => {});
       signal?.addEventListener('abort', cancel, { once: true });
@@ -20,9 +21,11 @@ if (extensionApi?.runtime && parseProblemUrl(window.location.href)) {
           error: { code: 'CANCELLED', message: 'Run cancelled.' },
         });
       }
-      return send({ type: 'RUNNER_EXECUTE', payload }).finally(() =>
-        signal?.removeEventListener('abort', cancel)
-      );
+      if (onProgress) progressListeners.set(payload.requestId, onProgress);
+      return send({ type: 'RUNNER_EXECUTE', payload }).finally(() => {
+        signal?.removeEventListener('abort', cancel);
+        progressListeners.delete(payload.requestId);
+      });
     },
     cancelOwner: () => send({ type: 'RUNNER_CANCEL_OWNER' }).catch(() => {}),
     grant: async (origin) => {
@@ -53,6 +56,10 @@ if (extensionApi?.runtime && parseProblemUrl(window.location.href)) {
     throw error;
   });
   extensionApi.runtime.onMessage.addListener((message) => {
+    if (message?.type === 'RUNNER_PROGRESS') {
+      progressListeners.get(message.payload?.requestId)?.(message.payload.phase);
+      return undefined;
+    }
     if (message?.type !== 'TOGGLE_WORKSPACE') return undefined;
     return initialization
       .then(() => (workspace.active ? workspace.deactivate() : workspace.activate()))

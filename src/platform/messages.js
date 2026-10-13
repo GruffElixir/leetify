@@ -30,7 +30,7 @@ const types = new Set([
   'CF_CANCEL_OWNER',
   'OPEN_OPTIONS',
 ]);
-export function createMessageRouter({ repository, runner, network, extensionApi }) {
+export function createMessageRouter({ repository, runner, localRunner, network, extensionApi }) {
   const runnerEpochs = new Map();
   return (message, sender = {}) => {
     if (!types.has(message?.type)) return undefined;
@@ -64,6 +64,7 @@ export function createMessageRouter({ repository, runner, network, extensionApi 
           if (message.type.startsWith('RUNNER'))
             runnerEpochs.set(owner, (runnerEpochs.get(owner) || 0) + 1);
           (message.type.startsWith('CF') ? network : runner).cancelOwner(owner);
+          if (message.type.startsWith('RUNNER')) localRunner?.cancelOwner(owner);
           return { ok: true };
         }
         if (message.type.endsWith('CANCEL')) {
@@ -73,6 +74,8 @@ export function createMessageRouter({ repository, runner, network, extensionApi 
             owner,
             requestId: payload.requestId,
           });
+          if (message.type.startsWith('RUNNER'))
+            localRunner?.cancel({ owner, requestId: payload.requestId });
           return { ok: true };
         }
         if (
@@ -81,6 +84,23 @@ export function createMessageRouter({ repository, runner, network, extensionApi 
         )
           throw new LeetifyError('INVALID_MESSAGE', 'Invalid request ID.');
         if (message.type.startsWith('RUNNER')) {
+          if (payload.runnerMode != null && !['local', 'piston'].includes(payload.runnerMode))
+            throw new LeetifyError('INVALID_MESSAGE', 'Choose a valid runner.');
+          if (payload.runnerMode === 'local') {
+            if (
+              !localRunner ||
+              (message.type !== 'RUNNER_CHECK' && payload.language !== 'cpp') ||
+              (message.type === 'RUNNER_EXECUTE' &&
+                (typeof payload.code !== 'string' || typeof payload.stdin !== 'string'))
+            )
+              throw new LeetifyError('INVALID_MESSAGE', 'The built-in runner supports C++ only.');
+            const method = {
+              RUNNER_CHECK: 'check',
+              RUNNER_DISCOVER: 'discover',
+              RUNNER_EXECUTE: 'execute',
+            }[message.type];
+            return localRunner[method]({ ...payload, owner });
+          }
           const url = runnerUrl(payload.endpoint);
           if (
             !url ||

@@ -32,6 +32,29 @@ export async function extension(page, config = {}) {
         : { contentType: 'text/html', body: fixtures['problem-multiple'] }
     )
   );
+  if (config.actualLocalRunner) {
+    await page.route('https://codeforces.com/__leetify/**', async (route) => {
+      const name = new URL(route.request().url()).pathname.split('/').at(-1);
+      if (
+        ![
+          'compiler-worker.js',
+          'execution-worker.js',
+          'clang.wasm',
+          'lld.wasm',
+          'sysroot.tar',
+        ].includes(name)
+      )
+        return route.abort();
+      await route.fulfill({
+        contentType: name.endsWith('.js')
+          ? 'application/javascript'
+          : name.endsWith('.wasm')
+            ? 'application/wasm'
+            : 'application/octet-stream',
+        body: await readFile(`dist/local-cpp/${name}`),
+      });
+    });
+  }
   await page.goto('https://codeforces.com/problemset/problem/4/A');
   await page.addStyleTag({ path: 'dist/styles.css' });
   await page.addScriptTag({ path: 'dist/content.js' });

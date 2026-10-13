@@ -8,6 +8,48 @@ const sender = {
   tab: { id: 7 },
   url: 'https://codeforces.com/problemset/problem/4/A',
 };
+
+test('local C++ routing needs no endpoint consent and never falls back to a remote runner', async () => {
+  const route = createMessageRouter({
+    repository: { readSnapshot: async () => ({ settings: { runnerConsentOrigin: '' } }) },
+    runner: {
+      execute: () => {
+        throw new Error('Source escaped to remote runner');
+      },
+    },
+    localRunner: {
+      execute: async ({ owner, code, stdin }) => ({
+        ok: true,
+        run: { code: 0, stdout: `${owner}:${code}:${stdin}` },
+      }),
+    },
+    extensionApi: { runtime: { id: 'extension' } },
+  });
+  const payload = {
+    runnerMode: 'local',
+    language: 'cpp',
+    code: 'source',
+    stdin: 'input',
+    requestId: 'local',
+  };
+  const result = await route({ type: 'RUNNER_EXECUTE', payload }, sender);
+  assert.equal(result.ok, true);
+  assert.equal(result.run.stdout, 'tab:7:source:input');
+  assert.equal(
+    (await route({ type: 'RUNNER_EXECUTE', payload: { ...payload, language: 'python' } }, sender))
+      .ok,
+    false
+  );
+  assert.equal(
+    (await route({ type: 'RUNNER_EXECUTE', payload }, { ...sender, id: 'foreign' })).ok,
+    false
+  );
+  assert.equal(
+    (await route({ type: 'RUNNER_EXECUTE', payload: { ...payload, runnerMode: 'typo' } }, sender))
+      .ok,
+    false
+  );
+});
 test('message router uses sender ownership and validates privileged payloads', async () => {
   const calls = [];
   const route = createMessageRouter({

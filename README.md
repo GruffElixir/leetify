@@ -1,10 +1,11 @@
 # Leetify Codeforces
 
-A Firefox extension that turns Codeforces problem pages into a focused coding workspace. Read the statement, write a solution, run samples with your own runner, and review submissions without leaving the problem.
+A Firefox extension that turns Codeforces problem pages into a focused coding workspace. Read the statement, write a solution, run C++ samples locally, and review submissions without leaving the problem.
 
 ## What's included
 
 - A bundled CodeMirror 6 editor for C++, Python, Java, and JavaScript, with undo, search, indentation, comments, folding, and bracket matching.
+- A bundled C++20 WebAssembly compiler. Click Run with no Docker, server, separate compiler or endpoint setup. Code and input stay on your computer, including when offline.
 - Charcoal, light, and Monokai themes. Resizable panes and a separate test drawer, stacked layouts, focus mode, and compact phone views.
 - Per-problem, per-language drafts in Firefox storage. Contest/problemset aliases share a draft; gym problems stay separate. Conflicts preserve both sources, including later edits before choosing the stored draft.
 - Every sample pair, with spaces and blank lines preserved. Custom cases persist. Runs capture source, language, endpoint, and cases once; Cancel stops the queue.
@@ -24,10 +25,10 @@ npm run check:extension
 npm run package
 ```
 
-The loadable extension is in **`dist/`**. The ZIP is `leetify-3.0.0.zip`.
+The loadable extension is in **`dist/`**. The ZIP is `leetify-3.1.0.zip`; its compiler makes it larger than the original build (about 95 MB unpacked toolchain assets).
 
 1. Open `about:debugging` in Firefox and select **This Firefox**.
-2. Click **Load Temporary Add-on…** and choose **`dist/manifest.json`**.
+2. Click **Load Temporary Add-on…** and choose **`dist/manifest.json`**, or select the packaged ZIP directly.
 3. Open a Codeforces contest, gym, or problemset problem. Allow Codeforces access if Firefox asks.
 4. Toggle with the extension toolbar action or **Ctrl+Shift+L**. Open Settings using the workspace gear or Firefox's extension menu.
 
@@ -35,7 +36,13 @@ Temporary add-ons disappear after Firefox restarts. Normal Firefox releases requ
 
 ## Run source
 
-Leetify does not include a compiler service. Configure a Piston-compatible service you operate or trust. The default execute endpoint is:
+C++ uses **Built-in C++20 (offline)** by default, including upgraded profiles. Select C++, write code, and click **Run all** or press **Ctrl+Enter**. The first run loads the bundled compiler; progress is shown while the editor remains usable. It compiles once per unchanged source, creates fresh runtime state for each case, and terminates work when you cancel. There is no automatic remote fallback.
+
+The built-in toolchain is Clang/LLD 20.1.2 with libc++ targeting 32-bit WASI. It supports standard C++20 and a standard-header `bits/stdc++.h` convenience shim. GNU PBDS, threads, native OS APIs and C++ exceptions are unavailable. GNU extensions and native 64-bit platform assumptions may require the Piston option. Compiler diagnostics show unsupported constructs. Codeforces submissions still use your selected Codeforces compiler.
+
+Local programs have a 2-second execution limit after startup, 256 MiB linear memory and 256 KiB output. Source and input are limited to 1 MiB each. Compiler loading has a 60-second deadline, followed by a 30-second compilation deadline; inactive compiler workers are released after 60 seconds. The compiler itself needs considerably more memory than the resulting program. Local timings and memory behavior do not predict Codeforces judging.
+
+For Python, Java and JavaScript, or optional native C++ execution, configure a Piston-compatible service you operate or trust. Choose **Piston service** in the C++ runner selector if desired. The default execute endpoint is:
 
 ```text
 http://127.0.0.1:2000/api/v2/execute
@@ -45,7 +52,7 @@ See [Piston setup and runtime installation](https://github.com/engineer-man/pist
 
 In Settings, enter the URL, click **Grant runner access**, then **Check connection**. A reachable service with no runtimes still needs language installation. Leetify picks the highest matching runtime and never guesses an absent version.
 
-Running sends source and input to the configured service after explicit host consent. Auto-run is off by default. Discovery has a 15-second client deadline; execution has a 30-second client deadline, with bounded compile/run budgets sent to the service. The operator controls the sandbox and actual limits.
+Piston runs send source and input to the configured service after explicit host consent. Auto-run is off by default for both runners. Piston discovery has a 15-second client deadline; execution has a 30-second client deadline, with bounded compile/run budgets sent to the service. The operator controls its sandbox and actual limits.
 
 ## Submissions
 
@@ -55,7 +62,7 @@ A confirmed receipt is distinct from an accepted verdict. For challenge/login pa
 
 ## Data and upgrades
 
-Drafts, templates, cases, preferences, and history stay in local Firefox storage. Source is sent only to the approved runner or Codeforces when you run or submit. There is no Leetify backend, account, tracking, or telemetry. Codeforces requests use your session; runner requests omit browser credentials.
+Drafts, templates, cases, preferences, and history stay in local Firefox storage. Built-in C++ runs keep source and input local. Source is sent to an approved Piston runner only for Piston runs, or to Codeforces when you submit. There is no Leetify backend, account, tracking, or telemetry. Codeforces requests use your session; Piston requests omit browser credentials.
 
 The original extension ID is retained. Migration reads v2 structured records, monolithic state, and supported site-local drafts without deleting originals. Unattributed source remains in **Templates & recovery**. Failed saves retain dirty source and expose Retry.
 
@@ -90,7 +97,7 @@ npm run check:extension
 npm run format:check
 ```
 
-Source is in `src/`; `dist/` is generated. The background process owns serialized storage and privileged networking. Browser fixtures exercise the actual built bundles with mocked transports. Unit tests cover migration, failed writes, conflicts, backups, parsing, runner failures, cancellation, and receipts.
+Source is in `src/`; `dist/` is generated. The background process owns serialized storage, privileged networking and local worker orchestration. Browser fixtures use mocked extension/Codeforces transports, while local C++ tests compile and execute real programs using the packaged compiler. Unit tests cover migration, failed writes, conflicts, backups, parsing, runner failures, cancellation, and receipts. See `vendor/README.md` for compiler provenance and licensing.
 
 See [docs/testing.md](docs/testing.md) for boundaries, manual checks, and narrowly reviewed Mozilla linter notices. Live Codeforces markup, authentication, challenges, and actual runners still need manual verification with your account and service.
 

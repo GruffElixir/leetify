@@ -1,6 +1,6 @@
 {
   "name": "leetify-codeforces",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
   "description": "A Firefox extension that turns Codeforces problem pages into a focused coding workspace.",
   "scripts": {
@@ -9,16 +9,18 @@
     "test": "node --test tests/unit/*.test.js",
     "test:unit": "node --test tests/unit/*.test.js",
     "test:browser": "playwright test",
+    "test:firefox-addon": "node tests/native/firefox-addon.mjs",
     "check:extension": "node scripts/check-extension.mjs",
     "check": "npm run lint && npm run build && npm test",
-    "format": "prettier --write src scripts tests/unit tests/browser playwright.config.js eslint.config.js",
-    "format:check": "prettier --check src scripts tests/unit tests/browser playwright.config.js eslint.config.js",
+    "format": "prettier --write src scripts tests/unit tests/browser tests/native playwright.config.js eslint.config.js",
+    "format:check": "prettier --check src scripts tests/unit tests/browser tests/native playwright.config.js eslint.config.js",
     "package": "node scripts/package.mjs"
   },
   "engines": {
     "node": ">=22"
   },
   "dependencies": {
+    "@bjorn3/browser_wasi_shim": "0.4.2",
     "@codemirror/commands": "^6.11.1",
     "@codemirror/lang-cpp": "^6.0.3",
     "@codemirror/lang-java": "^6.0.2",
@@ -29,6 +31,7 @@
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.14",
     "@lezer/highlight": "^1.2.5",
+    "browsercc": "0.1.1",
     "codemirror": "^6.0.2",
     "dompurify": "^3.4.16",
     "katex": "^0.19.0"

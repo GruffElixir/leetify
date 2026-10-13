@@ -1,13 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Leetify Codeforces",
-  "version": "3.0.0",
+  "version": "3.1.0",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; worker-src 'self'"
+  },
   "description": "A split-pane coding environment directly on Codeforces problem pages.",
   "permissions": ["activeTab", "storage"],
   "host_permissions": [
     "*://codeforces.com/*",
-    "*://www.codeforces.com/*",
-    "http://127.0.0.1:2000/*"
+    "*://www.codeforces.com/*"
   ],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "action": {

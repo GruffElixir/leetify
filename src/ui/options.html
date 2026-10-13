@@ -125,8 +125,8 @@
               <label class="lf-option-check"
                 ><input type="checkbox" data-setting="autoRunSamples" /><span
                   >Auto-run after source edits<span
-                    >Off by default. Sends source and samples to the approved runner after a short
-                    pause.</span
+                    >Off by default. Runs samples after a short pause. C++ uses your selected
+                    runner; other languages use the approved Piston service.</span
                   ></span
                 ></label
               >
@@ -165,8 +165,22 @@
           <section id="runner" class="lf-settings-card">
             <header>
               <h2>Code runner</h2>
-              <p>Connect your own Piston-compatible service.</p>
+              <p>C++ runs locally by default. Other languages use a Piston-compatible service.</p>
             </header>
+            <label
+              >C++ runner<select data-setting="cppRunner">
+                <option value="local">Built-in C++20 (offline)</option>
+                <option value="piston">Piston service</option>
+              </select></label
+            >
+            <p class="lf-runner-disclosure">
+              The built-in Clang compiler runs entirely on your computer. No Docker, server, or
+              compiler installation is needed, and local runs never send your code anywhere.
+              Supports standard C++20 and bits/stdc++.h. GNU PBDS, threads, native OS APIs and C++
+              exceptions aren't supported. Tests have a 2-second execution limit, 256 MiB memory and
+              256 KiB output. Codeforces judging uses its own compiler and limits.
+            </p>
+            <h3>Piston service (optional for C++)</h3>
             <label class="lf-endpoint-field"
               >Execute endpoint<input
                 type="url"
@@ -174,8 +188,8 @@
                 placeholder="http://127.0.0.1:2000/api/v2/execute"
             /></label>
             <p class="lf-runner-disclosure">
-              Running sends your source and test input to the configured runner. Use a service you
-              trust. Leetify has no built-in hosted runner, account, or telemetry.
+              Piston runs send your source and test input to the configured runner. Use a service
+              you trust. Leetify has no built-in hosted runner, account, or telemetry.
             </p>
             <div class="lf-options-actions">
               <button type="button" class="lf-button lf-submit" data-grant-runner>

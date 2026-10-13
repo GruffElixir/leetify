@@ -23,6 +23,26 @@ for (const name of ['content', 'background', 'options']) {
     sourcemap: 'external',
   });
 }
+await mkdir(path.join(dist, 'local-cpp'), { recursive: true });
+for (const name of ['compiler', 'execution']) {
+  await build({
+    entryPoints: [path.join(root, `src/runner/${name}-worker.js`)],
+    outfile: path.join(dist, `local-cpp/${name}-worker.js`),
+    bundle: true,
+    format: 'esm',
+    platform: 'browser',
+    target: ['firefox128'],
+    define: { process: 'undefined' },
+    minify: true,
+    legalComments: 'eof',
+    sourcemap: 'external',
+  });
+}
+for (const name of ['clang.wasm', 'lld.wasm', 'sysroot.tar'])
+  await cp(
+    path.join(root, 'node_modules/browsercc/dist', name),
+    path.join(dist, 'local-cpp', name)
+  );
 manifest.content_scripts[0].js = ['content.js'];
 const css = await readFile(path.join(root, 'src/ui/workspace.css'), 'utf8');
 const mathStyles = postcss.parse(
@@ -67,13 +87,17 @@ async function license(name, base = root) {
   }
   seen.add(name);
   const files = await readdir(dir);
-  const licenseFile = files.find((file) => /^licen[cs]e(?:\.|$)/i.test(file));
+  const licenseFiles = files.filter((file) => /^licen[cs]e(?:[.-]|$)/i.test(file));
   notices.push(
-    `## ${name} ${dependency.version}\nLicense: ${dependency.license || 'See package license'}\n${licenseFile ? await readFile(path.join(dir, licenseFile), 'utf8') : ''}`
+    `## ${name} ${dependency.version}\nLicense: ${dependency.license || 'See package license'}\n${(await Promise.all(licenseFiles.map((file) => readFile(path.join(dir, file), 'utf8')))).join('\n\n')}`
   );
   for (const child of Object.keys(dependency.dependencies || {})) await license(child, dir);
 }
 for (const name of Object.keys(pkg.dependencies || {})) await license(name);
+for (const file of await readdir(path.join(root, 'vendor/licenses')))
+  notices.push(
+    `## C++ toolchain: ${file}\n${await readFile(path.join(root, 'vendor/licenses', file), 'utf8')}`
+  );
 await writeFile(path.join(root, 'THIRD_PARTY_NOTICES.md'), notices.join('\n\n'));
 await cp(path.join(root, 'THIRD_PARTY_NOTICES.md'), path.join(dist, 'THIRD_PARTY_NOTICES.md'));
 console.log('Built extension in dist/.');

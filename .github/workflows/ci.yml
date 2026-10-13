@@ -25,5 +25,5 @@ jobs:
         with:
           name: verification-artifacts
           path: |
-            leetify-3.0.0.zip
+            leetify-*.zip
             test-results/

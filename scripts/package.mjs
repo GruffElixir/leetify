@@ -4,10 +4,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const index = process.argv.indexOf('--output');
+const version = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')).version;
 const output =
   index >= 0 && process.argv[index + 1]
     ? path.resolve(process.argv[index + 1])
-    : path.join(root, 'leetify-3.0.0.zip');
+    : path.join(root, `leetify-${version}.zip`);
 const files = {};
 async function collect(directory, prefix = '') {
   for (const entry of await readdir(directory, { withFileTypes: true })) {

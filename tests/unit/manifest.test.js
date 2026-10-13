@@ -5,7 +5,7 @@ import path from 'node:path';
 const root = path.resolve('dist');
 const manifest = JSON.parse(readFileSync(path.join(root, 'manifest.json'), 'utf8'));
 test('built manifest retains extension identity, minimum version and scoped routes', () => {
-  assert.equal(manifest.version, '3.0.0');
+  assert.equal(manifest.version, '3.1.0');
   assert.equal(manifest.browser_specific_settings.gecko.id, 'leetify-cf@yourdomain.com');
   assert.equal(manifest.browser_specific_settings.gecko.strict_min_version, '128.0');
   assert.deepEqual(manifest.browser_specific_settings.gecko.data_collection_permissions.required, [

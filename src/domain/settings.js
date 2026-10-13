@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   layout: 'vertical',
   autoActivate: true,
   autoRunSamples: false,
+  cppRunner: 'local',
   runnerEndpoint: DEFAULT_RUNNER_ENDPOINT,
   fontSize: 14,
   problemFontSize: 15,
@@ -36,6 +37,7 @@ export function normalizeSettings(input = {}) {
   setting.defaultLang = isLanguage(input.defaultLang) ? input.defaultLang : 'cpp';
   setting.theme = ['dark', 'light', 'monokai'].includes(input.theme) ? input.theme : 'dark';
   setting.layout = input.layout === 'horizontal' ? 'horizontal' : 'vertical';
+  setting.cppRunner = input.cppRunner === 'piston' ? 'piston' : 'local';
   for (const field of ['autoActivate', 'autoRunSamples', 'wrap', 'focus'])
     setting[field] = typeof input[field] === 'boolean' ? input[field] : DEFAULT_SETTINGS[field];
   for (const [field, min, max] of [
@@ -60,4 +62,7 @@ export function normalizeSettings(input = {}) {
   setting.runnerConsentOrigin =
     typeof input.runnerConsentOrigin === 'string' ? input.runnerConsentOrigin : '';
   return setting;
+}
+export function useLocalCpp(settings, language) {
+  return language === 'cpp' && settings.cppRunner !== 'piston';
 }

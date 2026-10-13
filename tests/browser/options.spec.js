@@ -14,6 +14,23 @@ async function file(page, backup) {
     buffer: Buffer.from(JSON.stringify(backup)),
   });
 }
+test('C++ runner preference persists and local setup is explained without remote permission', async ({
+  page,
+}) => {
+  await options(page);
+  await page.getByRole('combobox', { name: 'C++ runner', exact: true }).selectOption('local');
+  await expect
+    .poll(() => page.evaluate(() => __leetifyTest.snapshot().then((s) => s.settings.cppRunner)))
+    .toBe('local');
+  await expect(page.locator('#runner')).toContainText('No Docker');
+  await expect(page.getByRole('combobox', { name: 'C++ runner', exact: true })).toHaveValue(
+    'local'
+  );
+  await page.getByRole('combobox', { name: 'C++ runner', exact: true }).selectOption('piston');
+  await expect
+    .poll(() => page.evaluate(() => __leetifyTest.snapshot().then((s) => s.settings.cppRunner)))
+    .toBe('piston');
+});
 test('settings patch preserves another tab preference and fresh export includes a later draft', async ({
   page,
 }) => {

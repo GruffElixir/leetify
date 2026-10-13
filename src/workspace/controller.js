@@ -6,7 +6,7 @@ import {
   submitUrl,
   statusUrl,
 } from '../domain/problem.js';
-import { normalizeSettings, runnerUrl } from '../domain/settings.js';
+import { normalizeSettings, runnerUrl, useLocalCpp } from '../domain/settings.js';
 import { parseProblemDocument, sanitizeStatement } from '../codeforces/problem.js';
 import { renderRawMath } from '../codeforces/math.js';
 import { parseStatusRecords } from '../codeforces/status.js';
@@ -202,6 +202,11 @@ export class WorkspaceController {
     this.editor.setDocument({ key: draft.key, language: draft.language, code: draft.code });
     this.shell.language.value = this.language;
     this.saveStatus();
+    if (!this.batch)
+      this.shell.setStatus(
+        'runner',
+        useLocalCpp(this.settings, this.language) ? 'C++20 · local' : 'Piston · not checked'
+      );
   }
   renderProblem() {
     this.shell.title.textContent = this.current.title;
@@ -489,6 +494,7 @@ export class WorkspaceController {
       language: this.language,
       code: this.editor.getCode(),
       endpoint: this.settings.runnerEndpoint,
+      runnerMode: useLocalCpp(this.settings, this.language) ? 'local' : 'piston',
       cases: this.tests.getCases().filter((c) => !ids || ids.includes(c.id)),
     };
     if (!context.cases.length) {
@@ -496,14 +502,27 @@ export class WorkspaceController {
       return;
     }
     if (
-      !(await this.runnerConsent(context.endpoint)) ||
+      (context.runnerMode !== 'local' && !(await this.runnerConsent(context.endpoint))) ||
       generation !== this.runGeneration ||
       !this.active
     )
       return;
     const batch = createRunBatch({
       context,
-      execute: (request) => this.runner.execute(request),
+      execute: (request) =>
+        this.runner.execute({
+          ...request,
+          onProgress: (phase) => {
+            if (generation !== this.runGeneration || !this.active) return;
+            const text = {
+              queued: 'Waiting for C++ compiler…',
+              loading: 'Loading local C++ compiler…',
+              compiling: 'Compiling C++20 locally…',
+              running: 'Running C++ locally…',
+            }[phase];
+            if (text) this.tests.setSummary(text);
+          },
+        }),
       onResult: (result) => {
         if (generation === this.runGeneration && result.key === problemKey(this.current.route)) {
           this.tests.setResult(result);
@@ -522,7 +541,11 @@ export class WorkspaceController {
     this.shell.setMobileView('code');
     this.shell.setRunning(true);
     this.tests.setRunning(true);
-    this.tests.setSummary(`Running ${LANGUAGES[context.language].label}…`);
+    this.tests.setSummary(
+      context.runnerMode === 'local'
+        ? 'Starting local C++ compiler…'
+        : `Running ${LANGUAGES[context.language].label}…`
+    );
     this.tests.showResults();
     const summary = await batch.run();
     if (generation !== this.runGeneration) return;

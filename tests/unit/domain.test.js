@@ -4,6 +4,16 @@ import { parseProblemUrl, problemKey } from '../../src/domain/problem.js';
 import { compareOutputs, summarizeExecution } from '../../src/domain/execution.js';
 import { normalizeSettings } from '../../src/domain/settings.js';
 
+test('C++ defaults to local execution and preserves an explicit Piston preference', () => {
+  assert.equal(normalizeSettings().cppRunner, 'local');
+  assert.equal(normalizeSettings({ cppRunner: 'piston' }).cppRunner, 'piston');
+  assert.equal(normalizeSettings({ cppRunner: 'invalid' }).cppRunner, 'local');
+  assert.equal(
+    normalizeSettings({ cppRunner: 'local', runnerConsentOrigin: '' }).runnerConsentOrigin,
+    ''
+  );
+});
+
 test('problem identity shares contest/problemset drafts without merging gym drafts', () => {
   assert.equal(problemKey(parseProblemUrl('https://codeforces.com/contest/4/problem/a')), 'cf:4:A');
   assert.equal(
