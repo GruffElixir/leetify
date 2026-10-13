@@ -52,3 +52,9 @@ Rulings and verified fixes:
 Verification at this stage: 65/65 unit tests; 90/90 browser tests (45 each engine); lint/build/format; Mozilla linter 0 errors, 0 unreviewed warnings and the same 3 narrowly documented notices; production npm audit 0 vulnerabilities. Actual temporary Firefox 157 installation through Mozilla RDP compiled a bits/stdin C++ program through the real extension background router and returned stdout 42 with zero exits. An isolated generated profile was used, with no user's Firefox profile changed. Firefox 128 and a complete authenticated live Codeforces workspace remain manual boundaries. No real solution was submitted and nothing was pushed or published.
 
 User subsequently requested fresh supervisor iterations across the project until both supervisor and implementer agree. Their requested loop takes precedence over the original single-review finish workflow. Results will be recorded below.
+
+### Supervisor iteration 1
+
+A fresh supervisor inspected the whole project and reproduced two P2 UI issues. Both were accepted: refreshed Codeforces verdicts now update saved known receipts without discarding compiler/date metadata, and captured batch results carry input/expected/comparison intent. Results use captured values and identify a case changed since its run. Real Node/JSDOM/storage regressions failed first and then passed. The supervisor justified no additional features or bloat removal. External authentication, real submissions, Piston isolation, Mozilla signing and native Firefox 128 remain acknowledged verification boundaries.
+
+The implementer also removed successful native-test profile leftovers from CI artifacts. The real addon check left an extra profile before the fix; afterward it returned PASS with no new profile left behind. Deletion is restricted to the exact generated test-results/native-profile directory and occurs only after Firefox closes.

@@ -736,7 +736,20 @@ export class WorkspaceController {
         route
       );
       if (problemKey(route) !== problemKey(this.current.route)) return;
-      this.remoteRecords = records;
+      const known = new Map(
+        this.state.submissions
+          .filter((record) => record.key === problemKey(route))
+          .map((record) => [record.id, record])
+      );
+      for (const record of records) {
+        const local = known.get(record.id);
+        if (local) await this.storage.recordSubmission({ ...local, ...record });
+      }
+      if (known.size) this.state = await this.storage.readSnapshot();
+      if (problemKey(route) !== problemKey(this.current.route)) return;
+      // Known receipts now live in storage with their refreshed verdict and local metadata.
+      // Keeping a second stale copy would override later polling updates.
+      this.remoteRecords = records.filter((record) => !known.has(record.id));
       this.renderSubmissions();
       this.message(
         records.length

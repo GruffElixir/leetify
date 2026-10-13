@@ -33,7 +33,9 @@ export function createRunBatch({ context, execute, onResult = () => {} }) {
         key: captured.key,
         language: captured.language,
         actual: execution.actual,
+        input: sample.input,
         expected: sample.expected,
+        hasExpected: sample.hasExpected,
         diagnostics: execution.diagnostics,
         status: !execution.successful
           ? 'error'

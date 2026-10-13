@@ -119,10 +119,23 @@ export function createTestPanel({
         area('Actual output', result.actual || '', { readonly: true, attribute: 'data-actual' }),
         area(
           'Expected output',
-          sample.hasExpected ? sample.expected : 'No comparison (custom input)',
+          result.hasExpected ? result.expected : 'No comparison (custom input)',
           { readonly: true }
         )
       );
+      if (
+        result.input !== sample.input ||
+        result.expected !== sample.expected ||
+        result.hasExpected !== sample.hasExpected
+      ) {
+        const changed = doc.createElement('p');
+        changed.className = 'lf-empty';
+        changed.textContent =
+          'Case changed since this run. Run again to test the current input and expected output.';
+        body.append(changed);
+        if (result.input !== sample.input)
+          body.append(area('Input at run', result.input, { readonly: true }));
+      }
       const diagnostics = doc.createElement('div');
       diagnostics.className = 'lf-diagnostics';
       diagnostics.setAttribute('data-diagnostics', '');
@@ -192,8 +205,17 @@ export function createTestPanel({
     },
     getCases: () => structuredClone(cases),
     setResult(result) {
-      if (!cases.some((c) => c.id === result.id)) return;
-      results.set(result.id, structuredClone(result));
+      const sample = cases.find((c) => c.id === result.id);
+      if (!sample) return;
+      results.set(
+        result.id,
+        structuredClone({
+          input: sample.input,
+          expected: sample.expected,
+          hasExpected: sample.hasExpected,
+          ...result,
+        })
+      );
       renderTabs();
       if (view === 'results') render();
     },

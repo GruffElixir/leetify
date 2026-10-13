@@ -1,7 +1,7 @@
 import { firefox } from 'playwright';
 import net from 'node:net';
 import path from 'node:path';
-import { mkdir, mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 const port = await new Promise((resolve, reject) => {
   const server = net.createServer();
   server.once('error', reject);
@@ -11,8 +11,9 @@ const port = await new Promise((resolve, reject) => {
   });
 });
 const uuid = 'ccbdd5b1-1252-4c9f-b963-5dc183ed9d30';
-await mkdir(path.resolve('test-results'), { recursive: true });
-const profile = await mkdtemp(path.resolve('test-results/native-profile-'));
+const resultsRoot = path.resolve('test-results');
+await mkdir(resultsRoot, { recursive: true });
+const profile = await mkdtemp(path.join(resultsRoot, 'native-profile-'));
 const context = await firefox.launchPersistentContext(profile, {
   headless: true,
   args: ['--start-debugger-server', String(port)],
@@ -130,4 +131,10 @@ try {
 } finally {
   socket?.destroy();
   await context.close();
+  if (
+    path.dirname(profile) !== resultsRoot ||
+    !path.basename(profile).startsWith('native-profile-')
+  )
+    throw new Error('Refusing to remove a profile outside the generated test directory.');
+  await rm(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
 }
