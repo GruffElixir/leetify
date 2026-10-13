@@ -174,3 +174,41 @@ test('auto-run reruns an edit made while an earlier auto-run is in flight', asyn
     'version one plus version two',
   ]);
 });
+test('auto-run never opens the runner consent dialog', async ({ page }) => {
+  await extension(page, {
+    settings: { autoRunSamples: true, runnerConsentOrigin: '', defaultLang: 'python' },
+  });
+  await replaceCode(page, 'print(1)');
+  await expect(page.locator('[data-status=message]')).toContainText('Run', { timeout: 4000 });
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.cm-content')).toBeFocused();
+  expect(await page.evaluate(() => __leetifyTest.executionRequests.length)).toBe(0);
+  await page.getByRole('button', { name: 'Run all', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Allow runner access' })).toBeVisible();
+});
+test('an automatic run keeps the case editor the user is typing in', async ({ page }) => {
+  await extension(page, { settings: { autoRunSamples: true } });
+  await page.getByRole('button', { name: 'Add custom case' }).click();
+  await page.evaluate(() => (__leetifyTest.holdRuns = true));
+  await replaceCode(page, 'v1');
+  await expect.poll(() => page.evaluate(() => __leetifyTest.executionRequests.length)).toBe(1);
+  await page.keyboard.insertText(' v2');
+  await page.waitForTimeout(1500);
+  await page.getByRole('tab', { name: 'Test cases', exact: true }).click();
+  await page.getByRole('button', { name: 'Custom 1', exact: true }).click();
+  const input = page.getByRole('textbox', { name: 'Input' });
+  await input.click();
+  await page.keyboard.type('12');
+  const release = () =>
+    page.evaluate(() => __leetifyTest.executionResolvers.splice(0).forEach((r) => r()));
+  await expect
+    .poll(async () => {
+      await release();
+      return page.evaluate(() => __leetifyTest.executionRequests.at(-1).files[0].content);
+    })
+    .toBe('v1 v2');
+  await page.keyboard.type('34');
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue('1234');
+  await release();
+});

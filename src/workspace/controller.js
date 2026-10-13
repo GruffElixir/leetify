@@ -273,7 +273,7 @@ export class WorkspaceController {
       this.autoTimer = this.window.setTimeout(() => {
         if (!this.active) return;
         if (this.batch) this.autoRunPending = true;
-        else this.run();
+        else this.run(undefined, { auto: true });
       }, 1200);
   }
   saveStatus() {
@@ -551,7 +551,7 @@ export class WorkspaceController {
     this.tests?.setRunning(false);
     if (!clear) this.tests?.setSummary('Cancelled');
   }
-  async run(ids) {
+  async run(ids, { auto = false } = {}) {
     if (!this.active) return;
     this.autoRunPending = false;
     this.cancelRun({ clear: true });
@@ -566,6 +566,15 @@ export class WorkspaceController {
     };
     if (!context.cases.length) {
       this.message('Add a case before running.');
+      return;
+    }
+    if (
+      auto &&
+      context.runnerMode !== 'local' &&
+      runnerUrl(context.endpoint)?.origin !== this.settings.runnerConsentOrigin
+    ) {
+      // Automatic runs never open the consent dialog; the user grants it from an explicit Run.
+      this.message('Auto-run needs runner access. Use Run once to review and allow the runner.');
       return;
     }
     if (
@@ -605,7 +614,9 @@ export class WorkspaceController {
       },
     });
     this.batch = batch;
-    this.shell.setMobileView('code');
+    // An automatic run must not pull focus out of a case the user is editing.
+    const typing = auto && this.shell.tests.contains(this.document.activeElement);
+    if (!typing) this.shell.setMobileView('code');
     this.shell.setRunning(true);
     this.tests.setRunning(true);
     this.tests.setSummary(
@@ -613,7 +624,7 @@ export class WorkspaceController {
         ? 'Starting local C++ compiler…'
         : `Running ${LANGUAGES[context.language].label}…`
     );
-    this.tests.showResults();
+    if (!typing) this.tests.showResults();
     const summary = await batch.run();
     if (generation !== this.runGeneration) return;
     this.tests.setSummary(summary);
@@ -627,7 +638,7 @@ export class WorkspaceController {
       this.active &&
       this.editor.getCode() !== context.code
     )
-      this.run();
+      this.run(undefined, { auto: true });
   }
   runnerConsent(endpoint) {
     const origin = runnerUrl(endpoint)?.origin;

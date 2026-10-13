@@ -7,21 +7,26 @@ export function createRunBatch({ context, execute, onResult = () => {} }) {
   let promise;
   async function run() {
     const results = [];
+    // Local C++ compiles once per source, so a failed compilation applies to every case.
+    let compileFailure = null;
     for (const sample of captured.cases) {
       if (cancelled) break;
-      let raw;
-      try {
-        raw = await execute({
-          ...captured,
-          cases: undefined,
-          stdin: sample.input,
-          requestId: `${id}:${sample.id}`,
-          signal: controller.signal,
-        });
-      } catch (error) {
-        raw = { ok: false, error: { message: error.message || 'Execution failed.' } };
-      }
+      let raw = compileFailure;
+      if (!raw)
+        try {
+          raw = await execute({
+            ...captured,
+            cases: undefined,
+            stdin: sample.input,
+            requestId: `${id}:${sample.id}`,
+            signal: controller.signal,
+          });
+        } catch (error) {
+          raw = { ok: false, error: { message: error.message || 'Execution failed.' } };
+        }
       if (cancelled) break;
+      if (captured.runnerMode === 'local' && raw?.ok && raw.compile && !raw.run)
+        compileFailure = raw;
       // Keep one Piston runtime for the whole batch even if a health check refreshes the list.
       if (captured.runnerMode !== 'local' && !captured.version && raw?.runtime?.version)
         captured.version = raw.runtime.version;

@@ -102,3 +102,15 @@ A fifth fresh supervisor reviewed the whole project, reran the full suite and re
 Declined: the supervisor's optional removal of unused code (RUNNER_DISCOVER/discover, network cancelOwner, the dispose chain, editor.focus). It was explicitly not required, saves little, and some of it is ordinary lifecycle API.
 
 Verification: 79/79 unit, 106/106 browser (53 each engine), actual Firefox 157 addon compilation/execution PASS (stdout 42), lint/build/format, Mozilla 0 errors/0 unreviewed warnings/3 exact notices, production audit 0 vulnerabilities.
+
+### Supervisor iteration 6
+
+A sixth fresh supervisor reran the full suite at 2382857 and reported one P2 and two P3 findings, plus a stale "Leetify 3.0" options footer. It found no data-loss, security or race defects. The implementer reproduced each finding with a failing regression (browser regressions in both engines) and accepted all three:
+
+- P2: auto-run with a Piston language and no runner consent opened the consent modal on every pause in typing and moved focus out of the editor. Automatic runs now never open the dialog. They show a status message instead, and consent is granted from an explicit Run.
+- P3: an automatic run switched to Results and destroyed a custom-case textarea the user was typing in, losing keystrokes. Automatic runs no longer change the view while focus is inside the test panel; case tabs still show statuses.
+- P3: a local compile timeout or toolchain failure was repeated for every case (three cases meant three 30-second compiler timeouts). Local C++ compiles once per source, so a batch now reports a failed compilation for the remaining cases without recompiling. The next Run still retries retryable failures.
+
+The footer now reads Leetify 3.1. The supervisor found no justified feature addition or bloat removal and did not re-raise previously declined items.
+
+Verification: 80/80 unit, 110/110 browser (55 each engine), actual Firefox 157 addon compilation/execution PASS (stdout 42), lint/build/format, Mozilla 0 errors/0 unreviewed warnings/3 exact notices, production audit 0 vulnerabilities.

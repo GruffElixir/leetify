@@ -140,3 +140,27 @@ for (const removeOldVersion of [false, true]) {
     }
   });
 }
+
+test('a failed local compilation is reported for every case after one attempt', async () => {
+  const requests = [];
+  const failed = {
+    ok: true,
+    compile: {
+      code: 1,
+      stdout: '',
+      stderr: '',
+      status: 'TO',
+      message: 'The local compiler timed out.',
+    },
+  };
+  const summary = await createRunBatch({
+    context: { ...context(), runnerMode: 'local' },
+    execute: async (request) => (requests.push(request), failed),
+  }).run();
+  assert.equal(requests.length, 1);
+  assert.deepEqual(
+    summary.results.map((result) => result.status),
+    ['error', 'error']
+  );
+  assert.equal(summary.results[1].diagnostics[0].text, summary.results[0].diagnostics[0].text);
+});
