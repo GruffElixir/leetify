@@ -133,3 +133,13 @@ test('runner grant denial and empty runtimes are actionable without sending sour
   await expect(page.locator('[data-runner-status]')).toContainText('no runtimes');
   expect(await page.evaluate(() => __leetifyTest.executionRequests.length)).toBe(0);
 });
+test('a clamped setting shows the value that was saved', async ({ page }) => {
+  await options(page);
+  const size = page.getByRole('spinbutton', { name: 'Editor font size' });
+  await size.fill('5');
+  await size.press('Tab');
+  await expect
+    .poll(() => page.evaluate(() => __leetifyTest.snapshot().then((s) => s.settings.fontSize)))
+    .toBe(11);
+  await expect(size).toHaveValue('11');
+});

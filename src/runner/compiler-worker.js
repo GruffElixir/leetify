@@ -34,6 +34,8 @@ globalThis.onmessage = async ({ data: { id, code } }) => {
     const flags = [
       '-std=c++20',
       '-O2',
+      // Codeforces defines ONLINE_JUDGE; templates use it to skip local file redirection.
+      '-DONLINE_JUDGE',
       '-fno-exceptions',
       `-Wl,--max-memory=${LOCAL_LIMITS.memoryBytes}`,
       '-Wl,-z,stack-size=4194304',

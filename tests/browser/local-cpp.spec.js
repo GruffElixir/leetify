@@ -251,3 +251,21 @@ test('deep recursion reports the browser stack limit instead of an engine messag
   expect(results.deep?.run.status).toBe('RE');
   expect(results.deep.run.message).toMatch(/recursion is too deep/i);
 });
+test('local C++ defines ONLINE_JUDGE like Codeforces', async ({ page }) => {
+  await toolchain(page);
+  const result = await page.evaluate(async () => {
+    const compiled = await runWorker('compiler', {
+      code: `
+      #include <bits/stdc++.h>
+      int main() {
+      #ifndef ONLINE_JUDGE
+        freopen("input.txt", "r", stdin);
+        freopen("output.txt", "w", stdout);
+      #endif
+        int n; std::cin >> n; std::cout << (n % 2 == 0 && n > 2 ? "YES" : "NO") << std::endl; }`,
+    });
+    if (!compiled.module) return compiled;
+    return runWorker('execution', { module: compiled.module, stdin: '8\n' });
+  });
+  expect(result.run, JSON.stringify(result)).toMatchObject({ code: 0, stdout: 'YES\n' });
+});

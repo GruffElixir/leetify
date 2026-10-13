@@ -66,6 +66,8 @@ function patch(values) {
         if (pending[key] === value) delete pending[key];
       saveStatus.textContent = Object.keys(pending).length ? 'Unsaved settings' : 'Saved locally';
       root.querySelector('[data-retry-settings]').hidden = !Object.keys(pending).length;
+      // Show normalized values, such as clamped numbers, once they are no longer pending.
+      await storage.readSnapshot().then(render, () => {});
     } catch (error) {
       saveStatus.textContent = `Unsaved · ${error.message}`;
       root.querySelector('[data-retry-settings]').hidden = false;

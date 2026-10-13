@@ -114,3 +114,15 @@ A sixth fresh supervisor reran the full suite at 2382857 and reported one P2 and
 The footer now reads Leetify 3.1. The supervisor found no justified feature addition or bloat removal and did not re-raise previously declined items.
 
 Verification: 80/80 unit, 110/110 browser (55 each engine), actual Firefox 157 addon compilation/execution PASS (stdout 42), lint/build/format, Mozilla 0 errors/0 unreviewed warnings/3 exact notices, production audit 0 vulnerabilities.
+
+### Supervisor iteration 7
+
+A seventh fresh supervisor reran the suite at 38668b3 and reported one P2 and two P3 findings. It found no data-loss, race, security or layout defects. The implementer reproduced each finding with a failing regression in both engines and accepted all three:
+
+- P2: local C++ didn't define ONLINE_JUDGE, unlike Codeforces. The common `#ifndef ONLINE_JUDGE freopen(...)` template compiled and exited 0 with empty output on the real toolchain. The compiler now passes -DONLINE_JUDGE, and Settings and the README say so. As on the judge, debug output guarded by `#ifndef ONLINE_JUDGE` is hidden.
+- P3: Settings kept showing an out-of-range number (for example font size 5) after the clamped value (11) was saved, because the field was pending when the storage event arrived. After a save settles, the page now re-renders from a fresh snapshot, so normalized values appear.
+- P3 (accessibility): each workspace message was written to two role="status" regions. The status-bar message is now the only live region. Compact layouts hide it visually instead of with display:none, so it stays available to assistive technology, and the toast remains a visual duplicate. Not verified with a physical screen reader.
+
+The supervisor found no justified feature addition or bloat removal. It noted the KaTeX ttf/woff font formats (~0.8 MB against a ~95 MB toolchain) as not worth removing, and did not re-raise declined items.
+
+Verification: 80/80 unit, 116/116 browser (58 each engine), actual Firefox 157 addon compilation/execution PASS (stdout 42), lint/build/format, Mozilla 0 errors/0 unreviewed warnings/3 exact notices, production audit 0 vulnerabilities.

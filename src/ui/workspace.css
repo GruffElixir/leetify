@@ -856,9 +856,16 @@ body.leetify-open {
     gap: 7px;
     padding: 0 8px;
   }
-  #leetify-workspace .lf-statusbar [data-status='message'],
   #leetify-workspace .lf-encoding {
     display: none;
+  }
+  /* The toast shows messages here; keep the status live region for assistive technology. */
+  #leetify-workspace .lf-statusbar [data-status='message'] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
   #leetify-workspace .lf-statusbar [data-status='cursor'] {
     margin-left: auto;

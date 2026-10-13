@@ -212,3 +212,14 @@ test('an automatic run keeps the case editor the user is typing in', async ({ pa
   await expect(input).toHaveValue('1234');
   await release();
 });
+test('workspace messages use one live region that compact layouts keep', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await extension(page, {
+    settings: { autoRunSamples: true, runnerConsentOrigin: '', defaultLang: 'python' },
+  });
+  await page.getByRole('tab', { name: 'Code', exact: true }).click();
+  await replaceCode(page, 'print(1)');
+  const regions = page.locator('#leetify-workspace [role=status]', { hasText: 'Auto-run needs' });
+  await expect(regions).toHaveCount(1, { timeout: 4000 });
+  expect(await regions.evaluate((element) => getComputedStyle(element).display)).not.toBe('none');
+});
