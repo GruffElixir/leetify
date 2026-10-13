@@ -1,0 +1,259 @@
+import {
+  STORAGE_KEY,
+  clone,
+  id,
+  object,
+  validateState,
+  validateIdentity,
+  validateCases,
+  recover,
+  nextSolutionRevision,
+} from './schema.js';
+import { migrateRecords, mergeDraft, importLegacySite } from './migration.js';
+import { normalizeSettings } from '../domain/settings.js';
+import { isLanguage } from '../domain/languages.js';
+import { LeetifyError } from '../domain/errors.js';
+import { readBackup } from './backup.js';
+export class StorageRepository {
+  constructor({ storage, now = Date.now }) {
+    this.storage = storage;
+    this.now = now;
+    this.state = null;
+    this.initializing = null;
+    this.queue = Promise.resolve();
+  }
+  async initialize(site = {}) {
+    if (!this.state) {
+      if (!this.initializing)
+        this.initializing = (async () => {
+          const all = await this.storage.get(null);
+          const state = all[STORAGE_KEY]
+            ? validateState(all[STORAGE_KEY])
+            : migrateRecords(all, site, this.now());
+          if (!all[STORAGE_KEY]) await this.storage.set({ [STORAGE_KEY]: state });
+          this.state = state;
+        })().finally(() => {
+          this.initializing = null;
+        });
+      await this.initializing;
+    }
+    if (
+      Object.entries(site).some(
+        ([key, value]) =>
+          typeof value === 'string' &&
+          key.startsWith('leetify_') &&
+          this.state.legacySiteImports[key] !== value
+      )
+    )
+      await this.mutate((state) => importLegacySite(state, site, this.now()));
+    return this.readSnapshot();
+  }
+  async readSnapshot() {
+    if (!this.state) await this.initialize();
+    await this.queue;
+    return clone(this.state);
+  }
+  async mutate(change) {
+    if (!this.state) await this.initialize();
+    const operation = this.queue.then(async () => {
+      const next = clone(this.state);
+      const result = change(next);
+      await this.storage.set({ [STORAGE_KEY]: next });
+      this.state = next;
+      return clone(result ?? next);
+    });
+    this.queue = operation.catch(() => {});
+    return operation;
+  }
+  patchSettings(patch) {
+    if (!object(patch)) throw new LeetifyError('INVALID_DATA', 'Invalid settings.');
+    return this.mutate((state) => {
+      const next = { ...state.settings, ...patch };
+      for (const field of ['compilerByLang', 'activeTemplateByLang'])
+        if (object(patch[field])) next[field] = { ...state.settings[field], ...patch[field] };
+      state.settings = normalizeSettings(next);
+      return state.settings;
+    });
+  }
+  saveSolution({ key, language, code, expectedRevision, preservePrevious = false }) {
+    validateIdentity(key, language);
+    if (typeof code !== 'string' || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0)
+      throw new LeetifyError('INVALID_DATA', 'Invalid solution save.');
+    return this.mutate((state) => {
+      const languages = (state.solutions[key] ||= {});
+      const current = languages[language];
+      if ((current?.revision || 0) !== expectedRevision) {
+        if (current?.code === code) return { status: 'saved', solution: current };
+        const recovered = recover(state, {
+          key,
+          language,
+          code,
+          updatedAt: this.now(),
+          reason: 'Conflicting tab edit',
+        });
+        return { status: 'conflict', solution: current || null, recovered };
+      }
+      if (preservePrevious && current && current.code !== code)
+        recover(state, {
+          key,
+          language,
+          code: current.code,
+          updatedAt: current.updatedAt,
+          reason: 'Draft replaced after conflict review',
+        });
+      const solution = { code, updatedAt: this.now(), revision: nextSolutionRevision(state) };
+      languages[language] = solution;
+      return { status: 'saved', solution };
+    });
+  }
+  recoverDraft({ key, language, code, reason = 'Draft saved before conflict resolution' }) {
+    validateIdentity(key, language);
+    if (typeof code !== 'string')
+      throw new LeetifyError('INVALID_DATA', 'Invalid recovered source.');
+    return this.mutate((state) =>
+      recover(state, { key, language, code, reason, updatedAt: this.now() })
+    );
+  }
+  saveCases({ key, cases }) {
+    validateIdentity(key, 'cpp');
+    const validated = validateCases(cases);
+    return this.mutate((state) => {
+      state.cases[key] = validated;
+      return validated;
+    });
+  }
+  saveTemplate({ language, template }) {
+    if (
+      !isLanguage(language) ||
+      !object(template) ||
+      typeof template.code !== 'string' ||
+      typeof template.name !== 'string' ||
+      !template.name.trim()
+    )
+      throw new LeetifyError('INVALID_DATA', 'A template needs a language, name, and source.');
+    return this.mutate((state) => {
+      const entry = {
+        id: template.id || id('tpl'),
+        name: template.name.trim().slice(0, 80),
+        code: template.code,
+        updatedAt: this.now(),
+      };
+      const list = (state.templates[language] ||= []);
+      const index = list.findIndex((t) => t.id === entry.id);
+      if (index < 0) list.push(entry);
+      else list[index] = entry;
+      state.settings.activeTemplateByLang[language] = entry.id;
+      return entry;
+    });
+  }
+  deleteTemplate({ language, id: templateId }) {
+    if (!isLanguage(language)) throw new LeetifyError('INVALID_DATA', 'Invalid language.');
+    return this.mutate((state) => {
+      state.templates[language] = (state.templates[language] || []).filter(
+        (t) => t.id !== templateId
+      );
+      if (state.settings.activeTemplateByLang[language] === templateId)
+        delete state.settings.activeTemplateByLang[language];
+    });
+  }
+  recordSubmission(record) {
+    validateIdentity(record.key, record.language);
+    const { expectedStatusRevision, ...data } = record;
+    if (
+      expectedStatusRevision !== undefined &&
+      expectedStatusRevision !== null &&
+      typeof expectedStatusRevision !== 'string'
+    )
+      throw new LeetifyError('INVALID_DATA', 'Invalid submission status revision.');
+    return this.mutate((state) => {
+      const entry = { ...data, id: String(record.id || id('submission')) };
+      const index = state.submissions.findIndex((s) => s.id === entry.id);
+      const current = state.submissions[index];
+      if (expectedStatusRevision !== undefined && !current)
+        throw new LeetifyError(
+          'HISTORY_CHANGED',
+          'Submission history changed while its status was loading.'
+        );
+      if (
+        expectedStatusRevision !== undefined &&
+        (current.statusRevision ?? null) !== expectedStatusRevision
+      )
+        return current;
+      entry.statusRevision = id('status');
+      if (index < 0) state.submissions.push(entry);
+      else state.submissions[index] = { ...current, ...entry };
+      state.submissions = state.submissions.slice(-100);
+      return state.submissions.find((s) => s.id === entry.id);
+    });
+  }
+  async exportBackup() {
+    return {
+      format: 'leetify-backup',
+      version: 3,
+      exportedAt: this.now(),
+      state: await this.readSnapshot(),
+    };
+  }
+  async importBackup({ backup, mode = 'merge' }) {
+    const imported = readBackup(backup);
+    if (!['merge', 'replace'].includes(mode))
+      throw new LeetifyError('INVALID_DATA', 'Invalid import mode.');
+    return this.mutate((state) => {
+      if (mode === 'replace') {
+        const previous = { ...clone(state), preImportSnapshots: [] };
+        const snapshots = state.preImportSnapshots;
+        imported.solutionClock = state.solutionClock;
+        for (const languages of Object.values(imported.solutions))
+          for (const entry of Object.values(languages))
+            entry.revision = nextSolutionRevision(imported);
+        for (const record of imported.submissions) record.statusRevision = id('status');
+        imported.settings.runnerConsentOrigin = '';
+        Object.assign(state, clone(imported));
+        state.preImportSnapshots = [
+          ...snapshots,
+          { id: id('snapshot'), at: this.now(), state: previous },
+        ].slice(-3);
+      } else {
+        for (const [key, langs] of Object.entries(imported.solutions))
+          for (const [lang, entry] of Object.entries(langs))
+            mergeDraft(state, key, lang, entry, false);
+        for (const [lang, list] of Object.entries(imported.templates))
+          for (const entry of list) {
+            const target = (state.templates[lang] ||= []);
+            const same = target.find((t) => t.id === entry.id);
+            if (!same) target.push(entry);
+            else if (same.code !== entry.code)
+              target.push({ ...entry, id: id('tpl'), name: `${entry.name} (imported)` });
+          }
+        for (const [key, cases] of Object.entries(imported.cases)) {
+          const target = (state.cases[key] ||= []);
+          for (const sample of cases)
+            if (
+              !target.some(
+                (c) =>
+                  c.input === sample.input &&
+                  c.expected === sample.expected &&
+                  c.hasExpected === sample.hasExpected
+              )
+            )
+              target.push({
+                ...sample,
+                id: target.some((c) => c.id === sample.id) ? id('custom') : sample.id,
+              });
+        }
+        for (const draft of imported.recoveredDrafts) recover(state, draft);
+        for (const entry of imported.submissions)
+          if (!state.submissions.some((s) => s.id === entry.id)) state.submissions.push(entry);
+      }
+    });
+  }
+  async restoreSnapshot(snapshotId) {
+    const state = await this.readSnapshot();
+    const snapshot = state.preImportSnapshots.find((s) => s.id === snapshotId);
+    if (!snapshot) throw new LeetifyError('INVALID_DATA', 'Recovery snapshot not found.');
+    return this.importBackup({
+      backup: { format: 'leetify-backup', version: 3, state: snapshot.state },
+      mode: 'replace',
+    });
+  }
+}

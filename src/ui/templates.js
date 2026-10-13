@@ -1,0 +1,135 @@
+import { openDialog, confirmDialog } from './dialog.js';
+import { button } from './icons.js';
+import { LANGUAGES } from '../domain/languages.js';
+export function openTemplates({
+  state,
+  language,
+  getCode,
+  onUse = () => {},
+  onSave = () => {},
+  onDelete = () => {},
+  onRecover = () => {},
+  onReset = () => {},
+  document: doc = document,
+}) {
+  const content = doc.createElement('div');
+  const introduction = doc.createElement('p');
+  introduction.className = 'lf-muted';
+  introduction.textContent = `Manage ${LANGUAGES[language].label} starters or restore a preserved draft.`;
+  const list = doc.createElement('div');
+  list.className = 'lf-template-list';
+  const form = doc.createElement('form');
+  form.className = 'lf-template-form';
+  const name = doc.createElement('input');
+  name.setAttribute('aria-label', 'Template name');
+  name.placeholder = 'Template name';
+  name.required = true;
+  name.maxLength = 80;
+  const save = button(doc, { label: 'Save current code as template', text: true });
+  save.type = 'submit';
+  const message = doc.createElement('p');
+  message.setAttribute('role', 'status');
+  form.append(name, save);
+  content.append(introduction, list, form, message);
+  const dialog = openDialog({ title: 'Templates & recovery', content });
+  function render() {
+    list.replaceChildren();
+    for (const template of state.templates[language] || []) {
+      const row = doc.createElement('div');
+      row.className = 'lf-template-row';
+      const label = doc.createElement('span');
+      label.textContent = template.name;
+      const use = button(doc, { label: `Use ${template.name}`, text: true });
+      const remove = button(doc, { label: `Delete ${template.name}`, name: 'close' });
+      row.append(label, use, remove);
+      list.append(row);
+      use.addEventListener('click', () =>
+        confirmDialog({
+          title: 'Use template?',
+          message: 'Replace the current editor source with this template?',
+          confirmLabel: 'Use template',
+          onConfirm: async () => {
+            await onUse(template);
+            dialog.close();
+          },
+        })
+      );
+      remove.addEventListener('click', () =>
+        confirmDialog({
+          title: 'Delete template?',
+          message: `Delete “${template.name}”? Your saved problem solution is kept.`,
+          confirmLabel: 'Delete template',
+          onConfirm: async () => {
+            await onDelete(template);
+            state.templates[language] = state.templates[language].filter(
+              (t) => t.id !== template.id
+            );
+            render();
+          },
+        })
+      );
+    }
+    const reset = button(doc, { label: 'Reset to language starter', name: 'reset', text: true });
+    list.append(reset);
+    reset.addEventListener('click', () =>
+      confirmDialog({
+        title: 'Reset source?',
+        message: 'Replace the current editor source with the built-in language starter?',
+        confirmLabel: 'Reset source',
+        onConfirm: async () => {
+          await onReset();
+          dialog.close();
+        },
+      })
+    );
+    const drafts = state.recoveredDrafts.filter((d) => d.language === language);
+    if (drafts.length) {
+      const title = doc.createElement('h3');
+      title.textContent = 'Recovered drafts';
+      list.append(title);
+      for (const draft of drafts) {
+        const row = doc.createElement('div');
+        row.className = 'lf-recovered-row';
+        const label = doc.createElement('span');
+        label.textContent = `${draft.key || 'Unattributed draft'} · ${draft.reason || 'Recovered'}`;
+        const preview = doc.createElement('pre');
+        preview.textContent = draft.code.slice(0, 1000);
+        const use = button(doc, { label: `Restore draft ${draft.id}`, text: true });
+        use.textContent = 'Restore in current editor';
+        row.append(label, preview, use);
+        list.append(row);
+        use.addEventListener('click', () =>
+          confirmDialog({
+            title: 'Restore draft?',
+            message:
+              'Replace the current editor source with this recovered draft? The recovery copy stays available.',
+            confirmLabel: 'Restore draft',
+            onConfirm: async () => {
+              await onRecover(draft);
+              dialog.close();
+            },
+          })
+        );
+      }
+    }
+  }
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    save.disabled = true;
+    try {
+      const entry = await onSave({ name: name.value, code: getCode() });
+      if (entry) {
+        (state.templates[language] ||= []).push(entry);
+        render();
+        name.value = '';
+      }
+      message.textContent = 'Template saved.';
+    } catch (error) {
+      message.textContent = error.message;
+    } finally {
+      save.disabled = false;
+    }
+  });
+  render();
+  return dialog;
+}
