@@ -97,6 +97,26 @@ test('splitters respond to keyboard and result selection uses the selected case'
   await expect(page.locator('[data-diagnostics]')).toContainText('compiler failed');
   await expect(page.locator('[data-actual]')).not.toContainText('compiler failed');
 });
+test('case selection and result redraws keep keyboard focus', async ({ page }) => {
+  await components(page);
+  const caseButton = (name) => page.locator('.lf-case-tabs').getByRole('button', { name });
+  await caseButton('Sample 2').focus();
+  await page.keyboard.press('Enter');
+  await expect(caseButton('Sample 2')).toHaveAttribute('aria-pressed', 'true');
+  await expect(caseButton('Sample 2')).toBeFocused();
+  const result = (id) =>
+    page.evaluate(
+      (id) => testApp.panel.setResult({ id, status: 'passed', actual: 'YES', diagnostics: [] }),
+      id
+    );
+  await result('1');
+  await expect(caseButton('Sample 2')).toBeFocused();
+  await page.getByRole('tab', { name: 'Results', exact: true }).click();
+  const run = page.getByRole('button', { name: 'Run selected', exact: true });
+  await run.focus();
+  await result('2');
+  await expect(run).toBeFocused();
+});
 for (const [width, height] of [
   [1440, 900],
   [820, 900],
@@ -158,4 +178,25 @@ test('compact Code view shows the editor without page overflow', async ({ page }
   await page.screenshot({
     path: `test-results/components-mobile-code-${test.info().project.name}.png`,
   });
+});
+test('persisted focus mode cannot hide the statement on compact layouts', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await components(page);
+  await page.evaluate(() => testApp.shell.configure({ ...testApp.settings, focus: true }));
+  const statement = page.locator('.lf-description-pane');
+  const code = page.locator('.lf-code-pane');
+  await expect(statement).toBeVisible();
+  await expect(code).toBeHidden();
+  await page.getByRole('tab', { name: 'Code', exact: true }).click();
+  await expect(statement).toBeHidden();
+  await expect(page.locator('.cm-editor')).toBeVisible();
+  await page.getByRole('tab', { name: 'Description', exact: true }).first().click();
+  await expect(statement).toBeVisible();
+  await expect(code).toBeHidden();
+  await page.setViewportSize({ width: 820, height: 900 });
+  await expect(statement).toBeVisible();
+  await expect(code).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(statement).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Focus mode', exact: true })).toBeVisible();
 });

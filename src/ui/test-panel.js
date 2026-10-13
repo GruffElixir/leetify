@@ -29,6 +29,7 @@ export function createTestPanel({
   const results = new Map();
   const emit = () => onChange(structuredClone(cases.filter((c) => c.custom)));
   function renderTabs() {
+    const focused = tabs.contains(doc.activeElement) ? doc.activeElement.dataset.id : null;
     tabs.replaceChildren();
     for (const sample of cases) {
       const tab = button(doc, { label: sample.name || 'Custom case', text: true });
@@ -42,6 +43,11 @@ export function createTestPanel({
       });
       tabs.append(tab);
     }
+    if (focused != null)
+      (
+        [...tabs.children].find((tab) => tab.dataset.id === focused) ||
+        tabs.querySelector('[data-selected=true]')
+      )?.focus();
   }
   function area(label, value, { readonly = false, onInput, attribute } = {}) {
     const field = doc.createElement('label');

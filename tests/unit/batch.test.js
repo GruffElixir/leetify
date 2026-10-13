@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRunBatch } from '../../src/runner/batch.js';
+import { RunnerService } from '../../src/runner/service.js';
 const context = () => ({
   key: 'cf:4:A',
   language: 'cpp',
@@ -89,3 +90,53 @@ test('run cannot be restarted after cancellation', async () => {
   await batch.run();
   assert.equal(calls, 0);
 });
+
+for (const removeOldVersion of [false, true]) {
+  test(`a Piston batch retains its runtime when health checks ${removeOldVersion ? 'remove' : 'add'} versions`, async () => {
+    let runtimes = [{ language: 'python', version: '3.12.0' }];
+    const requests = [];
+    const runner = new RunnerService({
+      permissions: { contains: async () => true },
+      fetch: async (_url, init) => {
+        if (init?.method === 'POST') requests.push(JSON.parse(init.body));
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify(
+              init?.method === 'POST' ? { run: { code: 0, stdout: '', stderr: '' } } : runtimes
+            ),
+        };
+      },
+    });
+    const live = { ...context(), language: 'python', runnerMode: 'piston' };
+    const summary = await createRunBatch({
+      context: live,
+      execute: async (request) => {
+        const result = await runner.execute({ ...request, owner: 'tab:1' });
+        if (requests.length === 1) {
+          runtimes = [
+            ...(removeOldVersion ? [] : runtimes),
+            { language: 'python', version: '3.13.0' },
+          ];
+          await runner.check({
+            endpoint: live.endpoint,
+            owner: 'options',
+            requestId: 'health-check',
+          });
+        }
+        return result;
+      },
+    }).run();
+    assert.deepEqual(
+      requests.map((request) => request.version),
+      removeOldVersion ? ['3.12.0'] : ['3.12.0', '3.12.0']
+    );
+    if (removeOldVersion) {
+      assert.equal(summary.results[1].status, 'error');
+      assert.match(summary.results[1].diagnostics[0].text, /not installed/i);
+    } else {
+      assert.equal(summary.results[1].runtime.version, '3.12.0');
+    }
+  });
+}

@@ -74,3 +74,15 @@ A third fresh supervisor reproduced a P2 status race in both directions: delayed
 The P3 tab accessibility finding was also accepted. A shared selection function updates aria-selected and the keyboard entry point together for clicks, result display and programmatic desktop/mobile view selection. Three original regressions failed first and then passed. The implementer also tested receipt deletion before/during polling: deleted history remains deleted, polling stops with a native-status message, and failed conditional saves retain the receipt shape. Both additional regressions failed before their fixes and passed afterward. The existing delayed polling-disposal test now explicitly waits for the network request to begin instead of depending on synchronous dispatch before the newly added snapshot read.
 
 Current verification: 76/76 unit tests, lint/build and formatting pass. Full browser/native verification is running. The supervisor justified no feature addition, architectural rewrite or bloat removal. The existing external verification boundaries still apply.
+
+Supervisor 3's full verification completed at eb89aae: 76/76 unit, 92/92 browser (46 each engine), actual Firefox 157 addon compilation/execution (stdout 42), Mozilla 0 errors/0 unreviewed warnings/3 exact notices, and production audit 0 vulnerabilities.
+
+### Supervisor iteration 4
+
+A fourth fresh supervisor confirmed three findings before the session paused; all were accepted after independent reproduction.
+
+- P2: a Piston batch could switch runtime versions between cases when an options health check refreshed the cached runtime list (a real RunnerService/createRunBatch probe ran Python 3.12.0 and then 3.13.0). The batch now pins the first runtime version a Piston result reports for its remaining cases. If a health check removes that version, later cases report that it is not installed instead of silently switching. Local C++ is unaffected. Both regressions (version added, version removed) failed first and then passed.
+- P3: selecting a case replaced every case button and dropped keyboard focus to the document body. The panel now restores focus to the same case after redrawing only when focus was already inside the case controls, so result redraws never steal focus from unrelated controls. The browser regression failed in both engines first and then passed.
+- P2: persisted focus mode hid the statement on compact layouts, where the focus toggle itself is hidden, so the Description tab could not reveal it. Focus mode now applies only at widths of 900 px and above; compact tabs and stacked layouts control pane visibility. The browser regression (390 px tabs, 820 px stacked, 1440 px focus) failed in both engines first and then passed.
+
+The supervisor justified no feature addition, architecture rewrite or bloat removal. Verification: 78/78 unit, 96/96 browser (48 each engine), lint/build/format.

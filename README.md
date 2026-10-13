@@ -6,7 +6,7 @@ A Firefox extension that turns Codeforces problem pages into a focused coding wo
 
 - A bundled CodeMirror 6 editor for C++, Python, Java, and JavaScript, with undo, search, indentation, comments, folding, and bracket matching.
 - A bundled C++20 WebAssembly compiler. Click Run with no Docker, server, separate compiler or endpoint setup. Code and input stay on your computer, including when offline.
-- Charcoal, light, and Monokai themes. Resizable panes and a separate test drawer, stacked layouts, focus mode, and compact phone views.
+- Charcoal, light, and Monokai themes. Resizable panes and a separate test drawer, stacked layouts, focus mode on wide screens, and compact phone views.
 - Per-problem, per-language drafts in Firefox storage. Contest/problemset aliases share a draft; gym problems stay separate. Conflicts preserve both sources, including later edits before choosing the stored draft.
 - Every sample pair, with spaces and blank lines preserved. Custom cases persist. Runs capture source, language, endpoint, and cases once; Cancel stops the queue.
 - Compiler/runtime diagnostics separate from stdout. Token comparisons are labeled; cases without expected output report execution rather than a comparison pass.

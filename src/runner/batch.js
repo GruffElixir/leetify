@@ -22,6 +22,9 @@ export function createRunBatch({ context, execute, onResult = () => {} }) {
         raw = { ok: false, error: { message: error.message || 'Execution failed.' } };
       }
       if (cancelled) break;
+      // Keep one Piston runtime for the whole batch even if a health check refreshes the list.
+      if (captured.runnerMode !== 'local' && !captured.version && raw?.runtime?.version)
+        captured.version = raw.runtime.version;
       const execution = summarizeExecution(raw);
       const comparison =
         execution.successful && sample.hasExpected
