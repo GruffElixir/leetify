@@ -199,3 +199,30 @@ test('review: incoming custom cases preserve pending edits with colliding IDs', 
     )
   ).toBe(2);
 });
+
+test('review: generated raw math keeps its styling on the native page after exit', async ({
+  page,
+}) => {
+  await extension(page, { settings: { autoActivate: false } });
+  await page.evaluate(() => {
+    const p = document.createElement('p');
+    p.className = 'raw-math-regression';
+    p.textContent = '$$$\\sqrt{x} + \\overrightarrow{AB}$$$';
+    document.querySelector('#content > .problem-statement').append(p);
+  });
+  await page.evaluate(() => __leetifyTest.toggle());
+  const geometry = await page
+    .locator('.raw-math-regression .katex-html')
+    .evaluate((node) => node.getBoundingClientRect().width);
+  await page.getByRole('button', { name: 'Exit workspace' }).click();
+  const native = page.locator('#content > .problem-statement .raw-math-regression .katex');
+  await expect(native).toBeVisible();
+  const math = await native.evaluate((node) => ({
+    width: node.querySelector('.katex-html').getBoundingClientRect().width,
+    hiddenMath: getComputedStyle(node.querySelector('.katex-mathml')).position,
+  }));
+  expect(math.width).toBeLessThan(geometry * 2);
+  expect(math.hiddenMath).toBe('absolute');
+  await page.evaluate(() => __leetifyTest.toggle());
+  await expect(page.locator('.lf-description .raw-math-regression .katex')).toHaveCount(1);
+});

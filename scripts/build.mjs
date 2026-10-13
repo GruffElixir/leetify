@@ -49,7 +49,10 @@ const mathStyles = postcss.parse(
   await readFile(path.join(root, 'node_modules/katex/dist/katex.min.css'), 'utf8')
 );
 mathStyles.walkRules((rule) => {
-  rule.selectors = rule.selectors.map((selector) => `#leetify-workspace ${selector}`);
+  rule.selectors = rule.selectors.flatMap((selector) => [
+    `#leetify-workspace ${selector}`,
+    `.leetify-rendered-math ${selector}`,
+  ]);
 });
 const mathCss = mathStyles.toString();
 await writeFile(path.join(dist, 'styles.css'), `${mathCss}\n${css}`);

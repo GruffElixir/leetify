@@ -21,6 +21,7 @@ export function renderRawMath(statement) {
     while ((match = pattern.exec(node.nodeValue))) {
       fragment.append(doc.createTextNode(node.nodeValue.slice(cursor, match.index)));
       const span = doc.createElement('span');
+      span.className = 'leetify-rendered-math';
       const html = katex.renderToString(match[2] ?? match[4], {
         displayMode: !!match[1],
         throwOnError: false,

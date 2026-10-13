@@ -7,6 +7,7 @@ import {
   statusUrl,
 } from '../domain/problem.js';
 import { normalizeSettings, runnerUrl, useLocalCpp } from '../domain/settings.js';
+import { validateCases } from '../storage/schema.js';
 import { parseProblemDocument, sanitizeStatement } from '../codeforces/problem.js';
 import { renderRawMath } from '../codeforces/math.js';
 import { parseStatusRecords } from '../codeforces/status.js';
@@ -25,6 +26,7 @@ export class WorkspaceController {
     Object.assign(this, { window, document, storage, network, runner, submission });
     this.drafts = new Map();
     this.caseWrites = new Map();
+    this.caseAcknowledgements = new Map();
     this.disposers = [];
     this.navigation = 0;
     this.runGeneration = 0;
@@ -301,22 +303,47 @@ export class WorkspaceController {
     this.saveStatus();
     const result = await draft.saving;
     draft.saving = null;
+    if (draft.storageChangedWhileSaving) {
+      draft.storageChangedWhileSaving = false;
+      // Events can precede the save response. Never follow a snapshot older than that save.
+      if (this.state.solutionClock >= draft.revision) this.syncDraft(draft);
+    }
     this.saveStatus();
     if (!draft.error && !draft.conflict && draft.dirty) return this.persist(draft);
-    return result;
+    return result && !draft.conflict && !draft.dirty;
   }
   async flush() {
     this.window.clearTimeout(this.saveTimer);
     let okay = true;
     for (const draft of this.drafts.values())
       if (draft.dirty && !(await this.persist(draft))) okay = false;
-    for (const [key, pending] of this.caseWrites) {
-      try {
-        await this.storage.saveCases({ key, cases: pending.cases });
-        if (this.caseWrites.get(key) === pending) this.caseWrites.delete(key);
-      } catch (error) {
-        okay = false;
-        this.message(`Custom cases are unsaved. ${error.message}`);
+    for (const key of this.caseWrites.keys()) {
+      let pending;
+      while ((pending = this.caseWrites.get(key))) {
+        try {
+          if (!pending.saving) {
+            const signature = JSON.stringify(validateCases(pending.cases));
+            if (signature !== JSON.stringify(this.state.cases[key] || [])) {
+              const acknowledgements = this.caseAcknowledgements.get(key) || new Set();
+              this.caseAcknowledgements.set(key, acknowledgements);
+              acknowledgements.add(signature);
+              pending.saving = this.storage
+                .saveCases({ key, cases: pending.cases })
+                .catch((error) => {
+                  acknowledgements.delete(signature);
+                  if (!acknowledgements.size) this.caseAcknowledgements.delete(key);
+                  throw error;
+                });
+            }
+          }
+          await pending.saving;
+          if (this.caseWrites.get(key) === pending) this.caseWrites.delete(key);
+        } catch (error) {
+          pending.saving = null;
+          okay = false;
+          this.message(`Custom cases are unsaved. ${error.message}`);
+          break;
+        }
       }
     }
     if (Object.keys(this.pendingSettings).length && !(await this.flushSettings())) okay = false;
@@ -328,6 +355,27 @@ export class WorkspaceController {
     this.window.clearTimeout(this.caseTimer);
     this.caseTimer = this.window.setTimeout(() => this.flush(), 350);
   }
+  syncDraft(draft) {
+    const saved = this.state.solutions[draft.key]?.[draft.language];
+    if ((saved?.revision || 0) === draft.revision) return;
+    if (!draft.dirty) {
+      draft.code = saved?.code ?? this.starter(draft.language);
+      draft.revision = saved?.revision || 0;
+      draft.conflict = null;
+      draft.error = null;
+      if (draft === this.draft()) this.restoreEditor();
+    } else {
+      const changed = !draft.conflict || draft.conflict.solution?.revision !== saved?.revision;
+      draft.conflict = { status: 'conflict', solution: saved || null };
+      if (changed)
+        this.storage
+          .recoverDraft({ key: draft.key, language: draft.language, code: draft.code })
+          .catch((error) => {
+            draft.error = error.message;
+            this.saveStatus();
+          });
+    }
+  }
   storageChanged(state) {
     if (!state) return;
     const previous = this.state;
@@ -336,28 +384,20 @@ export class WorkspaceController {
     this.shell.configure(this.settings);
     this.editor.configure(this.settings);
     for (const draft of this.drafts.values()) {
-      const saved = state.solutions[draft.key]?.[draft.language];
-      if ((saved?.revision || 0) === draft.revision || draft.saving) continue;
-      if (!draft.dirty) {
-        draft.code = saved?.code ?? this.starter(draft.language);
-        draft.revision = saved?.revision || 0;
-        draft.conflict = null;
-        if (draft === this.draft()) this.restoreEditor();
-      } else {
-        draft.conflict = { status: 'conflict', solution: saved || null };
-        if (previous.solutions[draft.key]?.[draft.language]?.revision !== saved?.revision)
-          this.storage
-            .recoverDraft({ key: draft.key, language: draft.language, code: draft.code })
-            .catch((error) => {
-              draft.error = error.message;
-              this.saveStatus();
-            });
-      }
+      if (draft.saving) draft.storageChangedWhileSaving = true;
+      else this.syncDraft(draft);
     }
     const key = problemKey(this.current.route);
     const incoming = state.cases[key] || [];
     const pending = this.caseWrites.get(key);
+    let ownCaseSave = false;
+    for (const [savedKey, acknowledgements] of this.caseAcknowledgements) {
+      if (acknowledgements.delete(JSON.stringify(state.cases[savedKey] || [])) && savedKey === key)
+        ownCaseSave = true;
+      if (!acknowledgements.size) this.caseAcknowledgements.delete(savedKey);
+    }
     if (
+      !ownCaseSave &&
       JSON.stringify(previous.cases[key] || []) !== JSON.stringify(incoming) &&
       (!pending || JSON.stringify(pending.cases) !== JSON.stringify(incoming))
     ) {
